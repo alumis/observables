@@ -28,6 +28,7 @@
     "dist/**/*",
     "src/**/*"
   ],
+  "unpkg": "dist/browser/observables.js",
   "devDependencies": {
     "@babel/cli": "^7.2.3",
     "@babel/core": "^7.4.0",
