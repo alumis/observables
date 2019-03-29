@@ -1,29 +1,3 @@
-// const path = require('path');
-
-// module.exports = {
-//   entry: './src/browser-index.ts',
-//   module: {
-//     rules: [
-//       {
-//         test: /\.tsx?$/,
-//         exclude: /node_modules/,
-//         loader: 'babel-loader'
-//       }
-//     ]
-//   },
-//   resolve: {
-//     extensions: [ '.tsx', '.ts', '.js' ]
-//   },
-//   output: {
-//     filename: 'bundle.js',
-//     path: path.resolve(__dirname, 'dist')
-//   },
-//   mode: "production"
-// };
-
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
-
 const path = require("path");
 const webpack = require("./node_modules/webpack");
 
