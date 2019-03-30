@@ -152,9 +152,9 @@ export class ObservableArray<T> {
             node.recycle();
 
         this._head.recycle();
-        this._head = void 0;
+        delete this._head;
 
         this._tail.recycle();
-        this._tail = void 0;
+        delete this._tail;
     }
 }

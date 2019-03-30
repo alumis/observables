@@ -53,12 +53,10 @@ export class MappedObservableSet<T, U> extends ObservableSet<U> {
         });
     }
 
-    private _subscription: ObservableSubscription;
     private _map = new Map<T, U>();
+    private _subscription: ObservableSubscription;
 
     dispose() {
-
-        super.dispose();
 
         if (this.shouldDisposeMappedItemsWhenDisposing) {
 
@@ -69,6 +67,11 @@ export class MappedObservableSet<T, U> extends ObservableSet<U> {
             }
         }
 
+        super.dispose();
+
         this._subscription.dispose();
+        delete this._subscription;
+        
+        delete this._map;
     }
 }

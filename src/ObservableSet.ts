@@ -152,16 +152,6 @@ export class ObservableSet<T> {
         return ObservableSubscription.createFromHead(this._head, action);
     }
 
-    toSortedArray(compareFn: (a: T, b: T) => number) {
-
-        let result: T[] = [];
-
-        for (let i of this.wrappedSet)
-            result.push(i);
-
-        return result.sort(compareFn);
-    }
-
     protected notifySubscribers(addedItems: T[], removedItems: T[]) {
 
         for (let node = this._head.next; node != this._tail; node = node.next)
@@ -186,9 +176,9 @@ export class ObservableSet<T> {
             node.recycle();
 
         this._head.recycle();
-        this._head = void 0;
+        delete this._head;
 
         this._tail.recycle();
-        this._tail = void 0;
+        delete this._tail;
     }
 }

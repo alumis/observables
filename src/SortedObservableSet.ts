@@ -4,16 +4,16 @@ import { ObservableSet } from "./ObservableSet";
 
 export class SortedObservableSet<T> extends ObservableArray<T> {
 
-    constructor(set: ObservableSet<T>, protected compareFn: (a: T, b: T) => number) {
+    constructor(parentSet: ObservableSet<T>, protected sortFunction: (a: T, b: T) => number) {
 
-        super(set.toSortedArray(compareFn));
+        super(sortSet(parentSet.wrappedSet, sortFunction));
 
         (this._sortOrderHead.next = this._sortOrderTail).previous = this._sortOrderHead;
 
         for (let i = 0; i < this.wrappedArray.length; ++i)
             this.createComparison(this.wrappedArray[i], i);
 
-        this._setSubscription = set.subscribe((addedItems, removedItems) => {
+        this._subscription = parentSet.subscribe((addedItems, removedItems) => {
 
             let array = this.wrappedArray;
 
@@ -40,7 +40,7 @@ export class SortedObservableSet<T> extends ObservableArray<T> {
 
             for (let item of addedItems) {
 
-                let sortOrder = binarySearch(array, item, this.compareFn); // Binary search
+                let sortOrder = binarySearch(array, item, this.sortFunction); // Binary search
 
                 // assert(() => sortOrder < 0); // Should return one's complement if it doesn't exist
                 sortOrder = ~sortOrder;
@@ -67,7 +67,7 @@ export class SortedObservableSet<T> extends ObservableArray<T> {
 
     private _comparisons: Map<T, ComputedObservable<string>> = new Map();
 
-    private _setSubscription: ObservableSubscription;
+    private _subscription: ObservableSubscription;
 
     private _sortOrderHead = ObservableSubscription.create();
     private _sortOrderTail = ObservableSubscription.create();
@@ -92,13 +92,13 @@ export class SortedObservableSet<T> extends ObservableArray<T> {
             if (0 < sortOrder) {
 
                 if (sortOrder + 1 < this.wrappedArray.length)
-                    return SortedObservableSet.normalizeCompareFn(this.compareFn(item, this.wrappedArray[sortOrder - 1])) + " " + SortedObservableSet.normalizeCompareFn(this.compareFn(this.wrappedArray[sortOrder + 1], item));
+                    return SortedObservableSet.normalizeCompareFn(this.sortFunction(item, this.wrappedArray[sortOrder - 1])) + " " + SortedObservableSet.normalizeCompareFn(this.sortFunction(this.wrappedArray[sortOrder + 1], item));
 
-                return SortedObservableSet.normalizeCompareFn(this.compareFn(item, this.wrappedArray[sortOrder - 1])) + " 1";
+                return SortedObservableSet.normalizeCompareFn(this.sortFunction(item, this.wrappedArray[sortOrder - 1])) + " 1";
             }
 
             else if (1 < this.wrappedArray.length)
-                return "1 " + SortedObservableSet.normalizeCompareFn(this.compareFn(this.wrappedArray[1], item));
+                return "1 " + SortedObservableSet.normalizeCompareFn(this.sortFunction(this.wrappedArray[1], item));
 
             return "1 1";
 
@@ -142,7 +142,7 @@ export class SortedObservableSet<T> extends ObservableArray<T> {
                 for (let i = sortOrder; i < array.length; ++i)
                     --this._comparisons.get(array[i])["_sortOrder"];
 
-                let newSortOrder = binarySearch(array, item, this.compareFn); // Binary search
+                let newSortOrder = binarySearch(array, item, this.sortFunction); // Binary search
 
                 //assert(() => newSortOrder < 0); // Should return one's complement if it doesn't exist
 
@@ -187,27 +187,27 @@ export class SortedObservableSet<T> extends ObservableArray<T> {
 
         let b: T, c = this.wrappedArray[sortOrder], d: T;
 
-        if (0 <= sortOrder - 1 && 0 < this.compareFn(b = this.wrappedArray[sortOrder - 1], c)) { // c < b
+        if (0 <= sortOrder - 1 && 0 < this.sortFunction(b = this.wrappedArray[sortOrder - 1], c)) { // c < b
 
             // c or b has changed at this point
 
-            if (0 <= sortOrder - 2 && 0 < this.compareFn(this.wrappedArray[sortOrder - 2], c)) // c < a
+            if (0 <= sortOrder - 2 && 0 < this.sortFunction(this.wrappedArray[sortOrder - 2], c)) // c < a
                 return true;
 
-            if (sortOrder + 1 < this.wrappedArray.length && 0 < this.compareFn(b, d = this.wrappedArray[sortOrder + 1])) // d < b, which implies b has changed, and not c
+            if (sortOrder + 1 < this.wrappedArray.length && 0 < this.sortFunction(b, d = this.wrappedArray[sortOrder + 1])) // d < b, which implies b has changed, and not c
                 return false;
 
             return true; // either b or c has changed, no telling which
         }
 
-        if (sortOrder + 1 < this.wrappedArray.length && 0 < this.compareFn(c, d = this.wrappedArray[sortOrder + 1])) { // d < c
+        if (sortOrder + 1 < this.wrappedArray.length && 0 < this.sortFunction(c, d = this.wrappedArray[sortOrder + 1])) { // d < c
 
             // c or d has changed at this point
 
-            if (sortOrder + 2 < this.wrappedArray.length && 0 < this.compareFn(c, this.wrappedArray[sortOrder + 2])) // e < c
+            if (sortOrder + 2 < this.wrappedArray.length && 0 < this.sortFunction(c, this.wrappedArray[sortOrder + 2])) // e < c
                 return true;
 
-            if (0 <= sortOrder - 1 && 0 < this.compareFn(b = this.wrappedArray[sortOrder - 1], d)) // d < b, which implies d has changed, and not c
+            if (0 <= sortOrder - 1 && 0 < this.sortFunction(b = this.wrappedArray[sortOrder - 1], d)) // d < b, which implies d has changed, and not c
                 return false;
 
             return true; // either d or c has changed, no telling which
@@ -260,9 +260,31 @@ export class SortedObservableSet<T> extends ObservableArray<T> {
 
         super.dispose();
 
-        this._setSubscription.dispose();
+        this._subscription.dispose();
+        delete this._subscription;
+
         this._comparisons.forEach(c => { c.dispose(); });
+        delete this._comparisons;
+
+        for (let node = this._sortOrderHead.next; node != this._sortOrderTail; node = node.next)
+            node.recycle();
+
+        this._sortOrderHead.recycle();
+        delete this._sortOrderHead;
+
+        this._sortOrderTail.recycle();
+        delete this._sortOrderTail;
     }
+}
+
+function sortSet<T>(set: Set<T>, sortFunction: (a: T, b: T) => number) {
+
+    let result: T[] = [];
+
+    for (let i of set)
+        result.push(i);
+
+    return result.sort(sortFunction);
 }
 
 function binarySearch<T>(array: T[], item: T, compareFn?: (a: T, b: T) => number) {

@@ -130,7 +130,7 @@ export class Observable<T> {
         return ObservableSubscription.createFromHead(this._head, action);
     }
 
-    dispose(recycle = true) {
+    dispose() {
 
         this.wrappedValue = void 0;
 
@@ -151,26 +151,14 @@ export class Observable<T> {
         for (node = this._head.next; node != this._tail; node = node.next)
             node.recycle();
 
-        if (recycle) {
+        (this._head.next = this._tail).previous = this._head;
 
-            (this._head.next = this._tail).previous = this._head;
+        if (observables.length === observablesLength)
+            observables.push(this);
 
-            if (observables.length === observablesLength)
-                observables.push(this);
+        else observables[observablesLength] = this;
 
-            else observables[observablesLength] = this;
-
-            ++observablesLength;
-        }
-
-        else {
-
-            this._head.recycle();
-            this._head = void 0;
-
-            this._tail.recycle();
-            this._tail = void 0;
-        }
+        ++observablesLength;
     }
 }
 
@@ -233,12 +221,12 @@ export class ObservableSubscription {
         this.previous = void 0;
         this.next = void 0;
         this.action = void 0;
-    
+
         if (observableSubscriptions.length === observableSubscriptionsLength)
             observableSubscriptions.push(this);
-    
+
         else observableSubscriptions[observableSubscriptionsLength] = this;
-    
+
         ++observableSubscriptionsLength;
     }
 
@@ -251,39 +239,6 @@ export class ObservableSubscription {
 
 let computedObservables: ComputedObservable<any>[] = [];
 let computedObservablesLength = 0;
-
-function recycleComputedObservable<T>(computedObservable: ComputedObservable<T>) {
-
-    computedObservable.expression = void 0;
-    computedObservable.wrappedValue = void 0;
-    computedObservable.observables.clear();
-
-    let node = computedObservable._prioritizedHead;
-
-    if (node) {
-
-        for (node = node.next; node != computedObservable._prioritizedTail; node = node.next)
-            node.recycle();
-
-        computedObservable._prioritizedHead.recycle();
-        computedObservable._prioritizedHead = void 0;
-
-        computedObservable._prioritizedTail.recycle();
-        computedObservable._prioritizedTail = void 0;
-    }
-
-    for (node = computedObservable._head.next; node != computedObservable._tail; node = node.next)
-        node.recycle();
-
-    (computedObservable._head.next = computedObservable._tail).previous = computedObservable._head;
-
-    if (computedObservables.length === computedObservablesLength)
-        computedObservables.push(computedObservable);
-
-    else computedObservables[computedObservablesLength] = computedObservable;
-
-    ++computedObservablesLength;
-}
 
 export class ComputedObservable<T> extends Observable<T> {
 
@@ -375,7 +330,36 @@ export class ComputedObservable<T> extends Observable<T> {
     dispose() {
 
         this.observables.forEach(s => { s.dispose(); });
-        recycleComputedObservable(this);
+
+        this.expression = void 0;
+        this.wrappedValue = void 0;
+        this.observables.clear();
+
+        let node = this._prioritizedHead;
+
+        if (node) {
+
+            for (node = node.next; node != this._prioritizedTail; node = node.next)
+                node.recycle();
+
+            this._prioritizedHead.recycle();
+            this._prioritizedHead = void 0;
+
+            this._prioritizedTail.recycle();
+            this._prioritizedTail = void 0;
+        }
+
+        for (node = this._head.next; node != this._tail; node = node.next)
+            node.recycle();
+
+        (this._head.next = this._tail).previous = this._head;
+
+        if (computedObservables.length === computedObservablesLength)
+            computedObservables.push(this);
+
+        else computedObservables[computedObservablesLength] = this;
+
+        ++computedObservablesLength;
     }
 }
 
@@ -403,8 +387,12 @@ export function whenAsync(expression: () => boolean) {
 
 export function alwaysWhen(expression: () => boolean, callback: () => any) {
 
-    return ComputedObservable.createComputed(expression).subscribeInvoke(n => {
+    let result = ComputedObservable.createComputed(expression);
+
+    result.subscribeInvoke(n => {
         if (n)
             callback();
     });
+
+    return result;
 }

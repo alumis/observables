@@ -80,7 +80,30 @@ export class SessionStorageObservable<T> extends Observable<T> {
 
     dispose() {
 
-        super.dispose(false);
+        delete this.wrappedValue;
+
+        let node = this._prioritizedHead;
+
+        if (node) {
+
+            for (node = node.next; node != this._prioritizedTail; node = node.next)
+                node.recycle();
+
+            this._prioritizedHead.recycle();
+            delete this._prioritizedHead;
+
+            this._prioritizedTail.recycle();
+            delete this._prioritizedTail;
+        }
+
+        for (node = this._head.next; node != this._tail; node = node.next)
+            node.recycle();
+
+        this._head.recycle();
+        delete this._head;
+
+        this._tail.recycle();
+        delete this._tail;
     }
 }
 
