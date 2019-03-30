@@ -1,7 +1,7 @@
 {
   "name": "@alumis/observables",
   "version": "1.0.1",
-  "description": "An efficient, single-threaded observable library with supported for computed, arrays and sets.",
+  "description": "An efficient, single-threaded observable library with support for computed, arrays and sets.",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
   "typings": "./dist/esm/index.d.ts",
