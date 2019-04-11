@@ -1,4 +1,5 @@
-import { ObservableSet, ObservableSubscription } from "src";
+import { ObservableSet } from "./ObservableSet";
+import { ObservableSubscription } from "./Observable";
 
 export class MappedObservableSet<T, U> extends ObservableSet<U> {
 

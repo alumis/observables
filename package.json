@@ -1,19 +1,13 @@
 {
   "name": "@alumis/observables",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "An efficient, single-threaded observable library with support for computed, arrays and sets.",
-  "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
   "typings": "./dist/esm/index.d.ts",
-  "umd": "./dist/browser/observables.js",
-  "umd_name": "observables",
   "scripts": {
     "clean": "node ./node_modules/rimraf/bin.js ./dist",
-    "build": "npm run clean && npm run build:esm && npm run build:cjs && npm run build:browser",
-    "build:esm": "node ./node_modules/typescript/bin/tsc --project ./tsconfig.json --module es2015 --outDir ./dist/esm -d && node ./build/process-dts.js",
-    "build:cjs": "node ./node_modules/typescript/bin/tsc --project ./tsconfig.json --module commonjs --outDir ./dist/cjs",
-    "build:browser": "node ./node_modules/webpack-cli/bin/cli.js",
-    "bundle": "webpack"
+    "build": "npm run clean && npm run build:esm",
+    "build:esm": "node ./node_modules/typescript/bin/tsc --project ./tsconfig.json --module es2015 --outDir ./dist/esm -d"
   },
   "repository": {
     "type": "git",
@@ -30,20 +24,7 @@
   ],
   "unpkg": "dist/browser/observables.js",
   "devDependencies": {
-    "@babel/cli": "^7.2.3",
-    "@babel/core": "^7.4.0",
-    "@babel/plugin-proposal-class-properties": "^7.4.0",
-    "@babel/plugin-proposal-object-rest-spread": "^7.4.0",
-    "@babel/preset-env": "^7.4.2",
-    "@babel/preset-typescript": "^7.3.3",
-    "babel-loader": "^8.0.5",
     "rimraf": "^2.6.3",
-    "typescript": "^3.3.4000",
-    "webpack": "^4.29.6",
-    "webpack-cli": "^3.3.0"
-  },
-  "dependencies": {
-    "@babel/polyfill": "^7.4.0",
-    "core-js": "^3.0.0"
+    "typescript": "^3.3.4000"
   }
 }

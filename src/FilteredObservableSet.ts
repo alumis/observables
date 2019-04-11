@@ -1,4 +1,5 @@
-import { ObservableSet, ComputedObservable, ObservableSubscription } from "src";
+import { ObservableSet } from "./ObservableSet";
+import { ComputedObservable, ObservableSubscription } from "./Observable";
 
 export class FilteredObservableSet<T> extends ObservableSet<T> {
 
