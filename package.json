@@ -1,14 +1,7 @@
 {
   "name": "@alumis/observables",
-  "version": "1.0.4",
+  "version": "1.0.38",
   "description": "An efficient, single-threaded observable library with support for computed, arrays and sets.",
-  "module": "./dist/esm/index.js",
-  "typings": "./dist/esm/index.d.ts",
-  "scripts": {
-    "clean": "node ./node_modules/rimraf/bin.js ./dist",
-    "build": "npm run clean && npm run build:esm",
-    "build:esm": "node ./node_modules/typescript/bin/tsc --project ./tsconfig.json --module es2015 --outDir ./dist/esm -d"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/alumis/observables.git"
@@ -18,13 +11,11 @@
   "bugs": {
     "url": "https://github.com/alumis/observables/issues"
   },
-  "files": [
-    "dist/**/*",
-    "src/**/*"
-  ],
-  "unpkg": "dist/browser/observables.js",
   "devDependencies": {
-    "rimraf": "^2.6.3",
+    "@alumis/semaphore": "^1.0.0",
     "typescript": "^3.3.4000"
+  },
+  "peerDependencies": {
+    "@alumis/semaphore": "^1.0.0"
   }
 }
