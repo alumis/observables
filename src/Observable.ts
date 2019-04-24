@@ -62,6 +62,17 @@ export class Observable<T> {
         }
     }
 
+    setValueDontNotify(newValue: T, exemptedObservableSubscription: ObservableSubscription) {
+
+        let oldValue = this.wrappedValue;
+
+        if (newValue !== oldValue) {
+
+            this.wrappedValue = newValue;
+            this.notifySubscribersExcept(newValue, oldValue, exemptedObservableSubscription);
+        }
+    }
+
     private get prioritizedTail() {
 
         let value = this._prioritizedTail;
@@ -77,7 +88,7 @@ export class Observable<T> {
         return value;
     }
 
-    notifySubscribers(newValue: T, oldValue: T, ) {
+    notifySubscribers(newValue: T, oldValue: T) {
 
         let node = this._prioritizedHead;
 
@@ -98,6 +109,34 @@ export class Observable<T> {
 
             node = node.next;
             currentNode.action(newValue, oldValue);
+        }
+    }
+
+    notifySubscribersExcept(newValue: T, oldValue: T, exemptedObservableSubscription: ObservableSubscription) {
+
+        let node = this._prioritizedHead;
+
+        if (node) {
+
+            for (node = node.next; node !== this._prioritizedTail;) {
+
+                let currentNode = node;
+
+                node = node.next;
+
+                if (currentNode !== exemptedObservableSubscription)
+                    currentNode.action(newValue, oldValue);
+            }
+        }
+
+        for (node = this._head.next; node !== this._tail;) {
+
+            let currentNode = node;
+
+            node = node.next;
+
+            if (currentNode !== exemptedObservableSubscription)
+                currentNode.action(newValue, oldValue);
         }
     }
 
@@ -739,39 +778,82 @@ export class MappedObservableArray<T, U> extends ObservableArray<U> implements D
 
         this._derivedFromSubscription = derivedFrom.subscribe((addedOrRemovedItems: AddedOrRemovedItems<T>[]) => {
 
-            for (let i of addedOrRemovedItems) {
+            let wrappedArray = this.wrappedArray;
+            let moveMap: Map<T, U[]>;
+
+            this.notifySubscribers(addedOrRemovedItems.map(i => {
 
                 if (i.addedItems) {
 
-                    let uItems: U[] = [];
+                    if (i.move) {
 
-                    for (let t of i.addedItems) {
+                        let addedItems = i.addedItems.map(t => {
 
-                        let u = this.callbackfn(t);
+                            let uItems = moveMap.get(t);
+                            let u = uItems.shift();
 
-                        uItems.push(u);
+                            if (!uItems.length)
+                                moveMap.delete(t);
+
+                            return u;
+
+                        });
+
+                        wrappedArray.splice.apply(wrappedArray, (<any[]>[i.index, 0]).concat(addedItems));
+
+                        return <AddedOrRemovedItems<U>>{ addedItems: addedItems, index: i.index, move: true };
                     }
 
-                    this.insertRange(i.index, uItems);
-                    uItems = [];
+                    else {
+
+                        let addedItems = i.addedItems.map(t => this.callbackfn(t));
+
+                        wrappedArray.splice.apply(wrappedArray, (<any[]>[i.index, 0]).concat(addedItems));
+
+                        return <AddedOrRemovedItems<U>>{ addedItems: addedItems, index: i.index };
+                    }
                 }
 
                 else if (i.removedItems) {
 
-                    if (shouldDisposeMappedItemsWhenDisposing) {
+                    if (i.move) {
 
-                        let uItems = this.wrappedArray.slice(i.index, i.index + i.removedItems.length);
-                        this.removeRange(i.index, i.removedItems.length);
+                        if (!moveMap)
+                            moveMap = new Map();
 
-                        for (let u of uItems) {
-                            if ((<any>u).dispose)
-                                (<any>u).dispose();
+                        let uItems = wrappedArray.splice(i.index, i.removedItems.length);
+
+                        for (let j = 0; j < i.removedItems.length; ++j) {
+
+                            let t = i.removedItems[j];
+                            let u = uItems[j];
+                            let existingUItems = moveMap.get(t);
+
+                            if (!existingUItems)
+                                moveMap.set(t, [u]);
+
+                            else existingUItems.push(u);
                         }
+
+                        return <AddedOrRemovedItems<U>>{ removedItems: uItems, index: i.index, move: true };
                     }
 
-                    else this.removeRange(i.index, i.removedItems.length);
+                    else {
+
+                        let uItems = wrappedArray.splice(i.index, i.removedItems.length);
+
+                        if (shouldDisposeMappedItemsWhenDisposing) {
+
+                            for (let u of uItems) {
+                                if ((<any>u).dispose)
+                                    (<any>u).dispose();
+                            }
+                        }
+
+                        return <AddedOrRemovedItems<U>>{ removedItems: uItems, index: i.index };
+                    }
                 }
-            }
+            }));
         });
     }
 
@@ -1230,9 +1312,9 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
                 for (let i = 0, sortOrder = 0; i < wrappedArrayToBe.length && sortOrder < wrappedArray.length;) {
 
                     let itemThatEndedUpHere = wrappedArrayToBe[i];
-                
+
                     if (processedItems.has(itemThatEndedUpHere)) {
-                
+
                         ++i;
                         continue;
                     }
@@ -1240,18 +1322,18 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
                     let itemThatWasHere = wrappedArray[sortOrder];
 
                     if (itemThatEndedUpHere !== itemThatWasHere) {
-                
+
                         let itemThatEndedUpHereOldSortOrder = <number>this._comparisons.get(itemThatEndedUpHere)["__sortOrder"];
                         let itemThatWasHereNewSortOrder = newSortOrdersMap.get(itemThatWasHere);
-                
+
                         if (Math.abs(itemThatEndedUpHereOldSortOrder - sortOrder) < Math.abs(itemThatWasHereNewSortOrder - sortOrder)) {
-                
+
                             itemsToRemoveAndAdd.push({ item: itemThatWasHere, oldSortOrder: <number>this._comparisons.get(itemThatWasHere)["__sortOrder"], newSortOrder: itemThatWasHereNewSortOrder });
                             processedItems.add(itemThatWasHere);
                             ++sortOrder;
                             continue;
                         }
-                
+
                         else itemsToRemoveAndAdd.push({ item: itemThatEndedUpHere, oldSortOrder: itemThatEndedUpHereOldSortOrder, newSortOrder: i });
                     }
 
@@ -1259,16 +1341,6 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
 
                     ++i;
                 }
-
-                // for (let i = 0; i < wrappedArrayToBe.length; ++i) {
-
-                //     let item = wrappedArrayToBe[i];
-                //     let comparison = this._comparisons.get(item);
-                //     let oldSortOrder = <number>comparison["__sortOrder"];
-
-                //     if (i !== oldSortOrder)
-                //         newSortOrders.push({ item: item, oldSortOrder: oldSortOrder, newSortOrder: i });
-                // }
 
                 let addedOrRemovedItems: AddedOrRemovedItems<T>[] = [];
                 let comparisonsToRefresh = new Set<ComputedObservable<string>>();
@@ -1288,7 +1360,7 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
                     if (0 <= sortOrder - 1)
                         comparisonsToRefresh.add(this._comparisons.get(wrappedArray[sortOrder - 1]));
 
-                    addedOrRemovedItems.push(<AddedOrRemovedItems<T>>{ removedItems: [i.item], index: sortOrder });
+                    addedOrRemovedItems.push(<AddedOrRemovedItems<T>>{ removedItems: [i.item], index: sortOrder, move: true });
                 }
 
                 for (let i of itemsToRemoveAndAdd.sort((a, b) => a.newSortOrder - b.newSortOrder)) {
@@ -1304,7 +1376,7 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
                     if (0 <= sortOrder - 1)
                         comparisonsToRefresh.add(this._comparisons.get(wrappedArray[sortOrder - 1]));
 
-                    addedOrRemovedItems.push(<AddedOrRemovedItems<T>>{ addedItems: [i.item], index: sortOrder });
+                    addedOrRemovedItems.push(<AddedOrRemovedItems<T>>{ addedItems: [i.item], index: sortOrder, move: true });
                 }
 
                 for (let i = 0; i < wrappedArrayToBe.length; ++i)
@@ -1392,6 +1464,8 @@ export interface AddedOrRemovedItems<T> {
     removedItems: T[];
 
     index: number;
+
+    move: boolean;
 }
 
 function sortSet<T>(set: Set<T>, sortFunction: (a: T, b: T) => number) {
