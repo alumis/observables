@@ -582,21 +582,20 @@ export function alwaysWhen(expression: () => boolean, resolve: () => any, reject
     return result;
 }
 
-export interface DerivedObservableCollection extends ObservableCollection {
+export interface ObservableCollection<T> {
 
-    derivedFrom: ObservableCollection;
-    canDisposeDerivedFrom: boolean;
-}
-
-export interface ObservableCollection {
-
-    canTakeOwnership: boolean;
     dispose();
 }
 
-export class ObservableArray<T> implements ObservableCollection {
+export interface DerivedObservableCollection<T, U> extends ObservableCollection<U> {
 
-    constructor(public wrappedArray?: T[], public canTakeOwnership = false) {
+    sourceCollection: ObservableCollection<T>;
+    disposeSourceCollection: boolean;
+}
+
+export class ObservableArray<T> implements ObservableCollection<T> {
+
+    constructor(public wrappedArray?: T[]) {
 
         if (!wrappedArray)
             this.wrappedArray = [];
@@ -740,14 +739,7 @@ export class ObservableArray<T> implements ObservableCollection {
 
     map<U>(callbackfn: (x: T) => U) {
 
-        if (this.canTakeOwnership) {
-
-            this.canTakeOwnership = false;
-
-            return new MappedObservableArray(this, true, callbackfn, true, true);
-        }
-
-        return new MappedObservableArray(this, false, callbackfn, true, true);
+        return new MappedObservableArray(this, callbackfn, false, true);
     }
 
     dispose() {
@@ -770,13 +762,13 @@ export class ObservableArray<T> implements ObservableCollection {
     }
 }
 
-export class MappedObservableArray<T, U> extends ObservableArray<U> implements DerivedObservableCollection {
+export class MappedObservableArray<T, U> extends ObservableArray<U> implements DerivedObservableCollection<T, U> {
 
-    constructor(public derivedFrom: ObservableArray<T>, public canDisposeDerivedFrom: boolean, protected callbackfn: (x: T) => U, canTakeOwnership: boolean, protected shouldDisposeMappedItemsWhenDisposing: boolean) {
+    constructor(public sourceCollection: ObservableArray<T>, protected callbackfn: (x: T) => U, public disposeSourceCollection: boolean, protected disposeChildren: boolean) {
 
-        super(derivedFrom.wrappedArray.map(callbackfn), canTakeOwnership);
+        super(sourceCollection.wrappedArray.map(callbackfn));
 
-        this._derivedFromSubscription = derivedFrom.subscribe((addedOrRemovedItems: AddedOrRemovedItems<T>[]) => {
+        this._sourceCollectionSubscription = sourceCollection.subscribe((addedOrRemovedItems: AddedOrRemovedItems<T>[]) => {
 
             let wrappedArray = this.wrappedArray;
             let moveMap: Map<T, U[]>;
@@ -842,7 +834,7 @@ export class MappedObservableArray<T, U> extends ObservableArray<U> implements D
 
                         let uItems = wrappedArray.splice(i.index, i.removedItems.length);
 
-                        if (shouldDisposeMappedItemsWhenDisposing) {
+                        if (this.disposeChildren) {
 
                             for (let u of uItems) {
                                 if ((<any>u).dispose)
@@ -857,11 +849,16 @@ export class MappedObservableArray<T, U> extends ObservableArray<U> implements D
         });
     }
 
-    private _derivedFromSubscription: ObservableSubscription;
+    private _sourceCollectionSubscription: ObservableSubscription;
+
+    map<V>(callbackfn: (x: U) => V) {
+
+        return new MappedObservableArray(this, callbackfn, true, true);
+    }
 
     dispose() {
 
-        if (this.shouldDisposeMappedItemsWhenDisposing) {
+        if (this.disposeChildren) {
 
             for (let u of this.wrappedArray) {
 
@@ -872,17 +869,21 @@ export class MappedObservableArray<T, U> extends ObservableArray<U> implements D
 
         super.dispose();
 
-        this._derivedFromSubscription.dispose();
-        delete this._derivedFromSubscription;
+        if (this.disposeSourceCollection) {
 
-        if (this.canDisposeDerivedFrom)
-            this.derivedFrom.dispose();
+            this.sourceCollection.dispose();
+            delete this.sourceCollection;
+        }
+
+        else this._sourceCollectionSubscription.dispose();
+
+        delete this._sourceCollectionSubscription;
     }
 }
 
-export class ObservableSet<T> implements ObservableCollection {
+export class ObservableSet<T> implements ObservableCollection<T> {
 
-    constructor(public wrappedSet?: Set<T>, public canTakeOwnership = false) {
+    constructor(public wrappedSet?: Set<T>) {
 
         this.dispose = this.dispose.bind(this);
 
@@ -1017,11 +1018,6 @@ export class ObservableSet<T> implements ObservableCollection {
         return this.wrappedSet.has(value);
     }
 
-    // filter(callbackfn: (item: T) => boolean): FilteredObservableSet<T> {
-
-    //     return new FilteredObservableSet(this, callbackfn);
-    // }
-
     subscribe(action: (addedItems: T[], removedItems: T[]) => any) {
 
         return ObservableSubscription.createFromTail(this._tail, action);
@@ -1038,28 +1034,19 @@ export class ObservableSet<T> implements ObservableCollection {
             node.action(addedItems, removedItems);
     }
 
-    sort(compareFn: (a: T, b: T) => number) {
+    filter(callbackfn: (item: T) => boolean): FilteredObservableSet<T> {
 
-        if (this.canTakeOwnership) {
+        return new FilteredObservableSet(this, callbackfn, false);
+    }
 
-            this.canTakeOwnership = false;
+    sort(comparefn: (a: T, b: T) => number) {
 
-            return new SortedObservableSet<T>(this, true, compareFn, true);
-        }
-
-        return new SortedObservableSet<T>(this, false, compareFn, true);
+        return new SortedObservableSet<T>(this, comparefn, false);
     }
 
     map<U>(callbackfn: (x: T) => U) {
 
-        if (this.canTakeOwnership) {
-
-            this.canTakeOwnership = false;
-
-            return new MappedObservableSet(this, true, callbackfn, true, true);
-        }
-
-        return new MappedObservableSet(this, false, callbackfn, true, true);
+        return new MappedObservableSet(this, callbackfn, false, true);
     }
 
     dispose() {
@@ -1082,13 +1069,13 @@ export class ObservableSet<T> implements ObservableCollection {
     }
 }
 
-export class MappedObservableSet<T, U> extends ObservableSet<U> implements DerivedObservableCollection {
+export class MappedObservableSet<T, U> extends ObservableSet<U> implements DerivedObservableCollection<T, U> {
 
-    constructor(public derivedFrom: ObservableSet<T>, public canDisposeDerivedFrom: boolean, protected callbackfn: (x: T) => U, canTakeOwnership: boolean, protected shouldDisposeMappedItemsWhenDisposing: boolean) {
+    constructor(public sourceCollection: ObservableSet<T>, protected callbackfn: (x: T) => U, public disposeSourceCollection: boolean, protected disposeChildren: boolean) {
 
-        super(undefined, canTakeOwnership);
+        super(undefined);
 
-        for (let t of this.derivedFrom.wrappedSet) {
+        for (let t of this.sourceCollection.wrappedSet) {
 
             let u = this.callbackfn(t);
 
@@ -1096,7 +1083,7 @@ export class MappedObservableSet<T, U> extends ObservableSet<U> implements Deriv
             this.wrappedSet.add(u);
         }
 
-        this._derivedFromSubscription = derivedFrom.subscribe((addedItems, removedItems) => {
+        this._sourceCollectionSubscription = sourceCollection.subscribe((addedItems, removedItems) => {
 
             let uItems: U[] = [];
 
@@ -1111,7 +1098,6 @@ export class MappedObservableSet<T, U> extends ObservableSet<U> implements Deriv
                 }
 
                 this.addItems(uItems);
-                uItems = [];
             }
 
             else if (removedItems) {
@@ -1124,7 +1110,7 @@ export class MappedObservableSet<T, U> extends ObservableSet<U> implements Deriv
 
                 this.removeItems(uItems);
 
-                if (shouldDisposeMappedItemsWhenDisposing) {
+                if (disposeChildren) {
 
                     for (let u of uItems) {
                         if ((<any>u).dispose)
@@ -1136,11 +1122,26 @@ export class MappedObservableSet<T, U> extends ObservableSet<U> implements Deriv
     }
 
     private _map = new Map<T, U>();
-    private _derivedFromSubscription: ObservableSubscription;
+    private _sourceCollectionSubscription: ObservableSubscription;
+
+    filter(callbackfn: (item: U) => boolean): FilteredObservableSet<U> {
+
+        return new FilteredObservableSet(this, callbackfn, true);
+    }
+
+    sort(comparefn: (a: U, b: U) => number) {
+
+        return new SortedObservableSet<U>(this, comparefn, true);
+    }
+
+    map<V>(callbackfn: (x: U) => V) {
+
+        return new MappedObservableSet(this, callbackfn, true, true);
+    }
 
     dispose() {
 
-        if (this.shouldDisposeMappedItemsWhenDisposing) {
+        if (this.disposeChildren) {
 
             for (let u of this.wrappedSet) {
 
@@ -1151,26 +1152,32 @@ export class MappedObservableSet<T, U> extends ObservableSet<U> implements Deriv
 
         super.dispose();
 
-        this._derivedFromSubscription.dispose();
-        delete this._derivedFromSubscription;
-
         delete this._map;
 
-        if (this.canDisposeDerivedFrom)
-            this.derivedFrom.dispose();
+        if (this.disposeSourceCollection) {
+
+            this.sourceCollection.dispose();
+            delete this.sourceCollection;
+        }
+
+        else this._sourceCollectionSubscription.dispose();
+
+        delete this._sourceCollectionSubscription;
     }
 }
 
-export class SortedObservableSet<T> extends ObservableArray<T> implements DerivedObservableCollection {
+export class SortedObservableSet<T> extends ObservableArray<T> implements DerivedObservableCollection<T, T> {
 
-    constructor(public derivedFrom: ObservableSet<T>, public canDisposeDerivedFrom: boolean, protected comparefn: (a: T, b: T) => number, canTakeOwnership: boolean) {
+    constructor(public sourceCollection: ObservableSet<T>, protected comparefn: (a: T, b: T) => number, public disposeSourceCollection: boolean) {
 
-        super(sortSet(derivedFrom.wrappedSet, comparefn), canTakeOwnership);
+        super(sortSet(sourceCollection.wrappedSet, comparefn));
+
+        this.reflow = this.reflow.bind(this);
 
         for (let i = 0; i < this.wrappedArray.length; ++i)
             this.createComparison(this.wrappedArray[i], i);
 
-        this._derivedFromSubscription = derivedFrom.subscribe(async (addedItems, removedItems) => {
+        this._sourceCollectionSubscription = sourceCollection.subscribe(async (addedItems, removedItems) => {
 
             await this._semaphore.waitOneAsync();
 
@@ -1235,7 +1242,7 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
     }
 
     private _comparisons: Map<T, ComputedObservable<string>> = new Map();
-    private _derivedFromSubscription: ObservableSubscription;
+    private _sourceCollectionSubscription: ObservableSubscription;
     private _semaphore = new Semaphore();
 
     private createComparison(item: T, sortOrder: number) {
@@ -1247,13 +1254,13 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
             if (0 < sortOrder) {
 
                 if (sortOrder + 1 < this.wrappedArray.length)
-                    return SortedObservableSet.normalizeCompareFn(this.comparefn(item, this.wrappedArray[sortOrder - 1])) + " " + SortedObservableSet.normalizeCompareFn(this.comparefn(this.wrappedArray[sortOrder + 1], item));
+                    return SortedObservableSet.normalizeCompare(this.comparefn(item, this.wrappedArray[sortOrder - 1])) + " " + SortedObservableSet.normalizeCompare(this.comparefn(this.wrappedArray[sortOrder + 1], item));
 
-                return SortedObservableSet.normalizeCompareFn(this.comparefn(item, this.wrappedArray[sortOrder - 1])) + " 1";
+                return SortedObservableSet.normalizeCompare(this.comparefn(item, this.wrappedArray[sortOrder - 1])) + " 1";
             }
 
             else if (1 < this.wrappedArray.length)
-                return "1 " + SortedObservableSet.normalizeCompareFn(this.comparefn(this.wrappedArray[1], item));
+                return "1 " + SortedObservableSet.normalizeCompare(this.comparefn(this.wrappedArray[1], item));
 
             return "1 1";
 
@@ -1268,7 +1275,7 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
         this._comparisons.set(item, comparison);
     }
 
-    static normalizeCompareFn(n: number) {
+    private static normalizeCompare(n: number) {
 
         if (n < 0)
             return -1;
@@ -1298,7 +1305,7 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
             try {
 
                 let wrappedArray = this.wrappedArray;
-                let wrappedArrayToBe = sortSet(this.derivedFrom.wrappedSet, this.comparefn);
+                let wrappedArrayToBe = sortSet(this.sourceCollection.wrappedSet, this.comparefn);
 
                 let newSortOrdersMap = new Map<T, number>();
 
@@ -1398,9 +1405,9 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
         }, 0);
     }
 
-    private subscribeToComparison(item: T, observable: ComputedObservable<any>) {
+    private subscribeToComparison(_item: T, observable: ComputedObservable<any>) {
 
-        observable.subscribe(() => { this.reflow(); });
+        observable.subscribe(this.reflow);
     }
 
     remove(_item: T) {
@@ -1443,18 +1450,27 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
         throw new Error("Not supported");
     }
 
+    map<U>(callbackfn: (x: T) => U) {
+
+        return new MappedObservableArray(this, callbackfn, true, true);
+    }
+
     dispose() {
 
         super.dispose();
 
-        this._derivedFromSubscription.dispose();
-        delete this._derivedFromSubscription;
-
         this._comparisons.forEach(c => { c.dispose(); });
         delete this._comparisons;
 
-        if (this.canDisposeDerivedFrom)
-            this.derivedFrom.dispose();
+        if (this.disposeSourceCollection) {
+
+            this.sourceCollection.dispose();
+            delete this.sourceCollection;
+        }
+
+        else this._sourceCollectionSubscription.dispose();
+
+        delete this._sourceCollectionSubscription;
     }
 }
 
@@ -1478,16 +1494,16 @@ function sortSet<T>(set: Set<T>, sortFunction: (a: T, b: T) => number) {
     return result.sort(sortFunction);
 }
 
-function binarySearch<T>(array: T[], item: T, compareFn?: (a: T, b: T) => number) {
+function binarySearch<T>(array: T[], item: T, comparefn?: (a: T, b: T) => number) {
 
     let l = 0, h = array.length - 1, m, comparison;
 
-    compareFn = compareFn || ((a: T, b: T) => a < b ? -1 : (a > b ? 1 : 0));
+    comparefn = comparefn || ((a: T, b: T) => a < b ? -1 : (a > b ? 1 : 0));
 
     while (l <= h) {
 
         m = (l + h) >>> 1;
-        comparison = compareFn(array[m], item);
+        comparison = comparefn(array[m], item);
 
         if (comparison < 0)
             l = m + 1;
@@ -1501,13 +1517,13 @@ function binarySearch<T>(array: T[], item: T, compareFn?: (a: T, b: T) => number
     return ~l;
 }
 
-export class FilteredObservableSet<T> extends ObservableSet<T> implements DerivedObservableCollection {
+export class FilteredObservableSet<T> extends ObservableSet<T> implements DerivedObservableCollection<T, T> {
 
-    constructor(public derivedFrom: ObservableSet<T>, public canDisposeDerivedFrom: boolean, protected callbackfn: (value: T) => boolean, canTakeOwnership: boolean) {
+    constructor(public sourceCollection: ObservableSet<T>, protected callbackfn: (value: T) => boolean, public disposeSourceCollection: boolean) {
 
-        super(undefined, canTakeOwnership);
+        super(undefined);
 
-        let original = derivedFrom.wrappedSet;
+        let original = sourceCollection.wrappedSet;
         let filtered = this.wrappedSet;
 
         for (let i of original) {
@@ -1516,7 +1532,7 @@ export class FilteredObservableSet<T> extends ObservableSet<T> implements Derive
                 filtered.add(i);
         }
 
-        this._derivedFromSubscription = derivedFrom.subscribe((addedItems, removedItems) => {
+        this._sourceCollectionSubscription = sourceCollection.subscribe((addedItems, removedItems) => {
 
             if (addedItems) {
 
@@ -1541,7 +1557,7 @@ export class FilteredObservableSet<T> extends ObservableSet<T> implements Derive
     }
 
     private _observables: Map<T, ComputedObservable<boolean>> = new Map();
-    private _derivedFromSubscription: ObservableSubscription;
+    private _sourceCollectionSubscription: ObservableSubscription;
 
     private createObservable(item: T) {
 
@@ -1560,17 +1576,46 @@ export class FilteredObservableSet<T> extends ObservableSet<T> implements Derive
         return computedObservable.value;
     }
 
+    filter(callbackfn: (item: T) => boolean): FilteredObservableSet<T> {
+
+        return new FilteredObservableSet(this, callbackfn, true);
+    }
+
+    sort(comparefn: (a: T, b: T) => number) {
+
+        return new SortedObservableSet<T>(this, comparefn, true);
+    }
+
+    map<U>(callbackfn: (x: T) => U) {
+
+        return new MappedObservableSet(this, callbackfn, true, true);
+    }
+
     dispose() {
 
         super.dispose();
 
-        this._derivedFromSubscription.dispose();
-        delete this._derivedFromSubscription;
-
         this._observables.forEach(o => { o.dispose(); });
         delete this._observables;
 
-        if (this.canDisposeDerivedFrom)
-            this.derivedFrom.dispose();
+        if (this.disposeSourceCollection) {
+
+            this.sourceCollection.dispose();
+            delete this.sourceCollection;
+        }
+
+        else this._sourceCollectionSubscription.dispose();
+
+        delete this._sourceCollectionSubscription;
     }
+}
+
+export function o<T>(value?: T) {
+
+    return Observable.create<T>(value);
+}
+
+export function co<T>(expression: () => T) {
+
+    return ComputedObservable.createComputed(expression);
 }

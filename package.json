@@ -1,6 +1,6 @@
 {
   "name": "@alumis/observables",
-  "version": "1.0.42",
+  "version": "1.0.43",
   "description": "An efficient, single-threaded observable library with support for computed, arrays and sets.",
   "repository": {
     "type": "git",
@@ -12,10 +12,9 @@
     "url": "https://github.com/alumis/observables/issues"
   },
   "devDependencies": {
-    "@alumis/semaphore": "^1.0.0",
-    "typescript": "^3.3.4000"
+    "@alumis/semaphore": "^1.0.1"
   },
   "peerDependencies": {
-    "@alumis/semaphore": "^1.0.0"
+    "@alumis/semaphore": "^1.0.1"
   }
 }
