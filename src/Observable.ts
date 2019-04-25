@@ -1307,7 +1307,8 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
             try {
 
                 let wrappedArray = this.wrappedArray;
-                let wrappedArrayToBe = sortSet(this.sourceCollection.wrappedSet, this.comparefn);
+                let wrappedArrayToBe = wrappedArray.sort(this.comparefn);
+                //let wrappedArrayToBe = sortSet(this.sourceCollection.wrappedSet, this.comparefn);
 
                 let newSortOrdersMap = new Map<T, number>();
 
