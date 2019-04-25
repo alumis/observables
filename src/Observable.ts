@@ -597,6 +597,8 @@ export class ObservableArray<T> implements ObservableCollection<T> {
 
     constructor(public wrappedArray?: T[]) {
 
+        this.dispose = this.dispose.bind(this);
+
         if (!wrappedArray)
             this.wrappedArray = [];
 
