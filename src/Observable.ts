@@ -584,7 +584,14 @@ export function alwaysWhen(expression: () => boolean, resolve: () => any, reject
 
 export interface ObservableCollection<T> {
 
+    subscribe(action: (addedItems: T[], removedItems: T[]) => any): ObservableSubscription;
     dispose();
+}
+
+export interface OrderedObservableCollection<T> extends ObservableCollection<T> {
+
+    subscribe(action: (addedItems: T[], removedItems: T[], index: number, move: boolean) => any): ObservableSubscription;
+    wrappedCollection: T[];
 }
 
 export interface DerivedObservableCollection<T, U> extends ObservableCollection<U> {
@@ -593,17 +600,21 @@ export interface DerivedObservableCollection<T, U> extends ObservableCollection<
     disposeSourceCollection: boolean;
 }
 
-export class ObservableArray<T> implements ObservableCollection<T> {
+export class ObservableArray<T> implements OrderedObservableCollection<T> {
 
-    constructor(public wrappedArray?: T[]) {
+    constructor(wrappedCollection?: T[]) {
 
         this.dispose = this.dispose.bind(this);
 
-        if (!wrappedArray)
-            this.wrappedArray = [];
+        if (wrappedCollection)
+            this.wrappedCollection = wrappedCollection;
+
+        else this.wrappedCollection = [];
 
         (this._head.next = this._tail).previous = this._head;
     }
+
+    wrappedCollection: T[];
 
     private _head = ObservableSubscription.create();
     private _tail = ObservableSubscription.create();
@@ -618,21 +629,21 @@ export class ObservableArray<T> implements ObservableCollection<T> {
                 computedObservable.observables.set(this, this.subscribeSneakInLine(computedObservable.refresh));
         }
 
-        return this.wrappedArray;
+        return this.wrappedCollection;
     }
 
-    protected notifySubscribers(addedOrRemovedItems: AddedOrRemovedItems<T>[]) {
+    protected notifySubscribers(addedItems: T[], removedItems: T[], index: number, move?: boolean) {
 
         for (let node = this._head.next; node != this._tail; node = node.next)
-            node.action(addedOrRemovedItems);
+            node.action(addedItems, removedItems, index, move);
     }
 
-    subscribe(action: (addedOrRemovedItems: AddedOrRemovedItems<T>[]) => any) {
+    subscribe(action: (addedItems: T[], removedItems: T[], index: number, move: boolean) => any) {
 
         return ObservableSubscription.createFromTail(this._tail, action);
     }
 
-    subscribeSneakInLine(action: (addedOrRemovedItems: AddedOrRemovedItems<T>[]) => any) {
+    subscribeSneakInLine(action: (addedItems: T[], removedItems: T[], index: number, move: boolean) => any) {
 
         return ObservableSubscription.createFromHead(this._head, action);
     }
@@ -643,7 +654,7 @@ export class ObservableArray<T> implements ObservableCollection<T> {
 
     remove(item: T) {
 
-        let array = this.wrappedArray;
+        let array = this.wrappedCollection;
 
         for (let fromIndex = 0; ;) {
 
@@ -655,84 +666,85 @@ export class ObservableArray<T> implements ObservableCollection<T> {
             let removedItem = array[fromIndex];
 
             array.splice(fromIndex, 1);
-            this.notifySubscribers([<AddedOrRemovedItems<T>>{ removedItems: [removedItem], index: fromIndex }]);
+            this.notifySubscribers(null, [removedItem], fromIndex);
         }
     }
 
     removeAt(index: number) {
 
-        let array = this.wrappedArray, removedItems = [array[index]];
+        let array = this.wrappedCollection, removedItems = [array[index]];
 
         array.splice(index, 1);
-        this.notifySubscribers([<AddedOrRemovedItems<T>>{ removedItems: removedItems, index: index }]);
+        this.notifySubscribers(null, removedItems, index);
     }
 
     removeRange(index: number, count: number) {
 
-        let array = this.wrappedArray, removedItems = array.splice(index, count);
+        let array = this.wrappedCollection, removedItems = array.splice(index, count);
 
         if (removedItems.length)
-            this.notifySubscribers([<AddedOrRemovedItems<T>>{ removedItems: removedItems, index: index }]);
+            this.notifySubscribers(null, removedItems, index);
     }
 
     clear() {
 
-        let removedItems = this.wrappedArray;
+        let removedItems = this.wrappedCollection;
 
         if (removedItems.length) {
 
-            this.wrappedArray = [];
-            this.notifySubscribers([<AddedOrRemovedItems<T>>{ removedItems: removedItems, index: 0 }]);
+            this.wrappedCollection = [];
+            this.notifySubscribers(null, removedItems, 0);
         }
     }
 
     add(item: T) {
 
-        let array = this.wrappedArray;
+        let array = this.wrappedCollection;
 
         array.push(item);
-        this.notifySubscribers([<AddedOrRemovedItems<T>>{ addedItems: [item], index: this.wrappedArray.length - 1 }]);
+        this.notifySubscribers([item], null, this.wrappedCollection.length - 1);
     }
 
     addRange(items: T[]) {
 
         if (items.length) {
 
-            let array = this.wrappedArray, index = array.length;
+            let array = this.wrappedCollection, index = array.length;
 
             array.push.apply(array, items);
-            this.notifySubscribers([<AddedOrRemovedItems<T>>{ addedItems: items, index: index }]);
+            this.notifySubscribers(items, null, index);
         }
     }
 
     insert(index: number, item: T) {
 
-        let array = this.wrappedArray;
+        let array = this.wrappedCollection;
 
         array.splice(index, 0, item);
-        this.notifySubscribers([<AddedOrRemovedItems<T>>{ addedItems: [item], index: index }]);
+        this.notifySubscribers([item], null, index);
     }
 
     insertRange(index: number, items: T[]) {
 
         if (items.length) {
 
-            let array = this.wrappedArray;
+            let array = this.wrappedCollection;
 
             array.splice.apply(array, (<any[]>[index, 0]).concat(items));
-            this.notifySubscribers([<AddedOrRemovedItems<T>>{ addedItems: items, index: index }]);
+            this.notifySubscribers(items, null, index);
         }
     }
 
     reconcile(items: T[]) {
 
+        // TODO
         this.clear();
         this.addRange(items);
     }
 
     contains(item: T) {
 
-        for (let i of this.wrappedArray)
+        for (let i of this.wrappedCollection)
             if (i === item)
                 return true;
 
@@ -746,7 +758,7 @@ export class ObservableArray<T> implements ObservableCollection<T> {
 
     dispose() {
 
-        delete this.wrappedArray;
+        delete this.wrappedCollection;
 
         for (let node = this._head.next; node != this._tail;) {
 
@@ -766,88 +778,83 @@ export class ObservableArray<T> implements ObservableCollection<T> {
 
 export class MappedObservableArray<T, U> extends ObservableArray<U> implements DerivedObservableCollection<T, U> {
 
-    constructor(public sourceCollection: ObservableArray<T>, protected callbackfn: (x: T) => U, public disposeSourceCollection: boolean, protected disposeChildren: boolean) {
+    constructor(public sourceCollection: OrderedObservableCollection<T>, protected callbackfn: (x: T) => U, public disposeSourceCollection: boolean, protected disposeChildren: boolean) {
 
-        super(sourceCollection.wrappedArray.map(callbackfn));
+        super(sourceCollection.wrappedCollection.map(callbackfn));
 
-        this._sourceCollectionSubscription = sourceCollection.subscribe((addedOrRemovedItems: AddedOrRemovedItems<T>[]) => {
+        let moveMap = new Map<T, U[]>();
 
-            let wrappedArray = this.wrappedArray;
-            let moveMap: Map<T, U[]>;
+        this._sourceCollectionSubscription = sourceCollection.subscribe((addedItems: T[], removedItems: T[], index: number, move: boolean) => {
 
-            this.notifySubscribers(addedOrRemovedItems.map(i => {
+            if (move) {
 
-                if (i.addedItems) {
+                if (addedItems) {
 
-                    if (i.move) {
+                    let mappedAddedItems = addedItems.map(t => {
 
-                        let addedItems = i.addedItems.map(t => {
+                        let uFifo = moveMap.get(t);
 
-                            let uItems = moveMap.get(t);
-                            let u = uItems.shift();
+                        if (uFifo.length === 1) {
 
-                            if (!uItems.length)
-                                moveMap.delete(t);
+                            let result = uFifo[0];
 
-                            return u;
+                            moveMap.delete(t);
 
-                        });
-
-                        wrappedArray.splice.apply(wrappedArray, (<any[]>[i.index, 0]).concat(addedItems));
-
-                        return <AddedOrRemovedItems<U>>{ addedItems: addedItems, index: i.index, move: true };
-                    }
-
-                    else {
-
-                        let addedItems = i.addedItems.map(t => this.callbackfn(t));
-
-                        wrappedArray.splice.apply(wrappedArray, (<any[]>[i.index, 0]).concat(addedItems));
-
-                        return <AddedOrRemovedItems<U>>{ addedItems: addedItems, index: i.index };
-                    }
-                }
-
-                else if (i.removedItems) {
-
-                    if (i.move) {
-
-                        if (!moveMap)
-                            moveMap = new Map();
-
-                        let uItems = wrappedArray.splice(i.index, i.removedItems.length);
-
-                        for (let j = 0; j < i.removedItems.length; ++j) {
-
-                            let t = i.removedItems[j];
-                            let u = uItems[j];
-                            let existingUItems = moveMap.get(t);
-
-                            if (!existingUItems)
-                                moveMap.set(t, [u]);
-
-                            else existingUItems.push(u);
+                            return result;
                         }
 
-                        return <AddedOrRemovedItems<U>>{ removedItems: uItems, index: i.index, move: true };
-                    }
+                        return uFifo.shift();
+                    });
 
-                    else {
-
-                        let uItems = wrappedArray.splice(i.index, i.removedItems.length);
-
-                        if (this.disposeChildren) {
-
-                            for (let u of uItems) {
-                                if ((<any>u).dispose)
-                                    (<any>u).dispose();
-                            }
-                        }
-
-                        return <AddedOrRemovedItems<U>>{ removedItems: uItems, index: i.index };
-                    }
+                    this.wrappedCollection.splice.apply(this.wrappedCollection, (<any[]>[index, 0]).concat(mappedAddedItems));
+                    this.notifySubscribers(mappedAddedItems, null, index, true);
                 }
-            }));
+
+                else { // Removed items
+
+                    let mappedRemovedItems = this.wrappedCollection.splice(index, removedItems.length);
+
+                    for (let i = 0; i < removedItems.length; ++i) {
+
+                        let t = removedItems[i];
+                        let u = mappedRemovedItems[i];
+                        let existingUFifo = moveMap.get(t);
+
+                        if (existingUFifo)
+                            existingUFifo.push(u);
+
+                        else moveMap.set(t, [u]);
+                    }
+
+                    this.notifySubscribers(null, mappedRemovedItems, index, true);
+                }
+            }
+
+            else {
+
+                if (addedItems) {
+
+                    let mappedAddedItems = addedItems.map(t => this.callbackfn(t));
+
+                    this.wrappedCollection.splice.apply(this.wrappedCollection, (<any[]>[index, 0]).concat(mappedAddedItems));
+                    this.notifySubscribers(mappedAddedItems, null, index, false);
+                }
+
+                else { // Removed items
+
+                    let mappedRemovedItems = this.wrappedCollection.splice(index, removedItems.length);
+
+                    if (this.disposeChildren) {
+
+                        for (let u of mappedRemovedItems) {
+                            if ((<any>u).dispose)
+                                (<any>u).dispose();
+                        }
+                    }
+
+                    this.notifySubscribers(null, mappedRemovedItems, index, false);
+                }
+            }
         });
     }
 
@@ -862,7 +869,7 @@ export class MappedObservableArray<T, U> extends ObservableArray<U> implements D
 
         if (this.disposeChildren) {
 
-            for (let u of this.wrappedArray) {
+            for (let u of this.wrappedCollection) {
 
                 if ((<any>u).dispose)
                     (<any>u).dispose();
@@ -1176,8 +1183,8 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
 
         this.reflow = this.reflow.bind(this);
 
-        for (let i = 0; i < this.wrappedArray.length; ++i)
-            this.createComparison(this.wrappedArray[i], i);
+        for (let i = 0; i < this.wrappedCollection.length; ++i)
+            this.createComparison(this.wrappedCollection[i], i);
 
         this._sourceCollectionSubscription = sourceCollection.subscribe(async (addedItems, removedItems) => {
 
@@ -1185,29 +1192,29 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
 
             try {
 
-                let wrappedArray = this.wrappedArray;
+                let wrappedCollection = this.wrappedCollection;
 
                 if (addedItems) {
 
                     for (let item of addedItems) {
 
-                        let sortOrder = binarySearch(wrappedArray, item, this.comparefn); // Binary search
+                        let sortOrder = binarySearch(wrappedCollection, item, this.comparefn); // Binary search
 
                         sortOrder = ~sortOrder;
-                        wrappedArray.splice(sortOrder, 0, item);
+                        wrappedCollection.splice(sortOrder, 0, item);
 
-                        for (let i = sortOrder + 1; i < wrappedArray.length; ++i)
-                            ++this._comparisons.get(wrappedArray[i])["__sortOrder"];
+                        for (let i = sortOrder + 1; i < wrappedCollection.length; ++i)
+                            ++this._comparisons.get(wrappedCollection[i])["__sortOrder"];
 
                         this.createComparison(item, sortOrder);
 
-                        if (sortOrder + 1 < wrappedArray.length)
-                            this._comparisons.get(wrappedArray[sortOrder + 1]).refresh();
+                        if (sortOrder + 1 < wrappedCollection.length)
+                            this._comparisons.get(wrappedCollection[sortOrder + 1]).refresh();
 
                         if (0 <= sortOrder - 1)
-                            this._comparisons.get(wrappedArray[sortOrder - 1]).refresh();
+                            this._comparisons.get(wrappedCollection[sortOrder - 1]).refresh();
 
-                        this.notifySubscribers([<AddedOrRemovedItems<T>>{ addedItems: [item], index: sortOrder }]);
+                        this.notifySubscribers([item], null, sortOrder);
                     }
                 }
 
@@ -1220,18 +1227,18 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
 
                         comparison.dispose();
                         this._comparisons.delete(item);
-                        wrappedArray.splice(sortOrder, 1);
+                        wrappedCollection.splice(sortOrder, 1);
 
-                        for (let i = sortOrder; i < wrappedArray.length; ++i)
-                            --this._comparisons.get(wrappedArray[i])["__sortOrder"];
+                        for (let i = sortOrder; i < wrappedCollection.length; ++i)
+                            --this._comparisons.get(wrappedCollection[i])["__sortOrder"];
 
-                        if (sortOrder < wrappedArray.length)
-                            this._comparisons.get(wrappedArray[sortOrder]).refresh();
+                        if (sortOrder < wrappedCollection.length)
+                            this._comparisons.get(wrappedCollection[sortOrder]).refresh();
 
                         if (0 <= sortOrder - 1)
-                            this._comparisons.get(wrappedArray[sortOrder - 1]).refresh();
+                            this._comparisons.get(wrappedCollection[sortOrder - 1]).refresh();
 
-                        this.notifySubscribers([<AddedOrRemovedItems<T>>{ removedItems: [item], index: sortOrder }]);
+                        this.notifySubscribers(null, [item], sortOrder);
                     }
                 }
             }
@@ -1255,14 +1262,14 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
 
             if (0 < sortOrder) {
 
-                if (sortOrder + 1 < this.wrappedArray.length)
-                    return SortedObservableSet.normalizeCompare(this.comparefn(item, this.wrappedArray[sortOrder - 1])) + " " + SortedObservableSet.normalizeCompare(this.comparefn(this.wrappedArray[sortOrder + 1], item));
+                if (sortOrder + 1 < this.wrappedCollection.length)
+                    return SortedObservableSet.normalizeCompare(this.comparefn(item, this.wrappedCollection[sortOrder - 1])) + " " + SortedObservableSet.normalizeCompare(this.comparefn(this.wrappedCollection[sortOrder + 1], item));
 
-                return SortedObservableSet.normalizeCompare(this.comparefn(item, this.wrappedArray[sortOrder - 1])) + " 1";
+                return SortedObservableSet.normalizeCompare(this.comparefn(item, this.wrappedCollection[sortOrder - 1])) + " 1";
             }
 
-            else if (1 < this.wrappedArray.length)
-                return "1 " + SortedObservableSet.normalizeCompare(this.comparefn(this.wrappedArray[1], item));
+            else if (1 < this.wrappedCollection.length)
+                return "1 " + SortedObservableSet.normalizeCompare(this.comparefn(this.wrappedCollection[1], item));
 
             return "1 1";
 
@@ -1306,22 +1313,17 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
 
             try {
 
-                let wrappedArray = this.wrappedArray;
-                let wrappedArrayToBe = wrappedArray.sort(this.comparefn);
-                //let wrappedArrayToBe = sortSet(this.sourceCollection.wrappedSet, this.comparefn);
+                let wrappedCollection = this.wrappedCollection;
+                let wrappedCollectionToBe = wrappedCollection.map(i => i).sort(this.comparefn);
+                let wrappedCollectionToBeSortOrders = new Map<T, number>(); for (let i = 0; i < wrappedCollectionToBe.length; ++i) wrappedCollectionToBeSortOrders.set(wrappedCollectionToBe[i], i);
 
-                let newSortOrdersMap = new Map<T, number>();
-
-                for (let i = 0; i < wrappedArrayToBe.length; ++i)
-                    newSortOrdersMap.set(wrappedArrayToBe[i], i);
-
-                let itemsToRemoveAndAdd: { item: T; oldSortOrder: number; newSortOrder: number; }[] = [];
+                let sortOrders: { item: T; oldSortOrder: number; newSortOrder: number; }[] = [];
 
                 let processedItems = new Set<T>();
 
-                for (let i = 0, sortOrder = 0; i < wrappedArrayToBe.length && sortOrder < wrappedArray.length;) {
+                for (let i = 0, sortOrder = 0; i < wrappedCollectionToBe.length && sortOrder < wrappedCollection.length;) {
 
-                    let itemThatEndedUpHere = wrappedArrayToBe[i];
+                    let itemThatEndedUpHere = wrappedCollectionToBe[i];
 
                     if (processedItems.has(itemThatEndedUpHere)) {
 
@@ -1329,22 +1331,22 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
                         continue;
                     }
 
-                    let itemThatWasHere = wrappedArray[sortOrder];
+                    let itemThatWasHere = wrappedCollection[sortOrder];
 
                     if (itemThatEndedUpHere !== itemThatWasHere) {
 
                         let itemThatEndedUpHereOldSortOrder = <number>this._comparisons.get(itemThatEndedUpHere)["__sortOrder"];
-                        let itemThatWasHereNewSortOrder = newSortOrdersMap.get(itemThatWasHere);
+                        let itemThatWasHereNewSortOrder = wrappedCollectionToBeSortOrders.get(itemThatWasHere);
 
                         if (Math.abs(itemThatEndedUpHereOldSortOrder - sortOrder) < Math.abs(itemThatWasHereNewSortOrder - sortOrder)) {
 
-                            itemsToRemoveAndAdd.push({ item: itemThatWasHere, oldSortOrder: <number>this._comparisons.get(itemThatWasHere)["__sortOrder"], newSortOrder: itemThatWasHereNewSortOrder });
+                            sortOrders.push({ item: itemThatWasHere, oldSortOrder: <number>this._comparisons.get(itemThatWasHere)["__sortOrder"], newSortOrder: itemThatWasHereNewSortOrder });
                             processedItems.add(itemThatWasHere);
                             ++sortOrder;
                             continue;
                         }
 
-                        else itemsToRemoveAndAdd.push({ item: itemThatEndedUpHere, oldSortOrder: itemThatEndedUpHereOldSortOrder, newSortOrder: i });
+                        else sortOrders.push({ item: itemThatEndedUpHere, oldSortOrder: itemThatEndedUpHereOldSortOrder, newSortOrder: i });
                     }
 
                     else ++sortOrder;
@@ -1352,50 +1354,50 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
                     ++i;
                 }
 
-                let addedOrRemovedItems: AddedOrRemovedItems<T>[] = [];
                 let comparisonsToRefresh = new Set<ComputedObservable<string>>();
+                let lengthOneArray = [null];
 
-                for (let i of itemsToRemoveAndAdd.sort((a, b) => b.oldSortOrder - a.oldSortOrder)) {
+                for (let i of sortOrders.sort((a, b) => b.oldSortOrder - a.oldSortOrder)) {
 
                     let comparison = this._comparisons.get(i.item);
                     let sortOrder = i.oldSortOrder;
 
                     comparison.dispose();
                     this._comparisons.delete(i.item);
-                    wrappedArray.splice(sortOrder, 1);
+                    wrappedCollection.splice(sortOrder, 1);
 
-                    if (sortOrder < wrappedArray.length)
-                        comparisonsToRefresh.add(this._comparisons.get(wrappedArray[sortOrder]));
+                    if (sortOrder < wrappedCollection.length)
+                        comparisonsToRefresh.add(this._comparisons.get(wrappedCollection[sortOrder]));
 
                     if (0 <= sortOrder - 1)
-                        comparisonsToRefresh.add(this._comparisons.get(wrappedArray[sortOrder - 1]));
+                        comparisonsToRefresh.add(this._comparisons.get(wrappedCollection[sortOrder - 1]));
 
-                    addedOrRemovedItems.push(<AddedOrRemovedItems<T>>{ removedItems: [i.item], index: sortOrder, move: true });
+                    lengthOneArray[0] = i.item;
+                    this.notifySubscribers(null, lengthOneArray, sortOrder, true);
                 }
 
-                for (let i of itemsToRemoveAndAdd.sort((a, b) => a.newSortOrder - b.newSortOrder)) {
+                for (let i of sortOrders.sort((a, b) => a.newSortOrder - b.newSortOrder)) {
 
                     let sortOrder = i.newSortOrder;
 
-                    wrappedArray.splice(sortOrder, 0, i.item);
+                    wrappedCollection.splice(sortOrder, 0, i.item);
                     this.createComparison(i.item, sortOrder);
 
-                    if (sortOrder + 1 < wrappedArray.length)
-                        comparisonsToRefresh.add(this._comparisons.get(wrappedArray[sortOrder + 1]));
+                    if (sortOrder + 1 < wrappedCollection.length)
+                        comparisonsToRefresh.add(this._comparisons.get(wrappedCollection[sortOrder + 1]));
 
                     if (0 <= sortOrder - 1)
-                        comparisonsToRefresh.add(this._comparisons.get(wrappedArray[sortOrder - 1]));
+                        comparisonsToRefresh.add(this._comparisons.get(wrappedCollection[sortOrder - 1]));
 
-                    addedOrRemovedItems.push(<AddedOrRemovedItems<T>>{ addedItems: [i.item], index: sortOrder, move: true });
+                    lengthOneArray[0] = i.item;
+                    this.notifySubscribers(lengthOneArray, null, sortOrder, true);
                 }
 
-                for (let i = 0; i < wrappedArrayToBe.length; ++i)
-                    this._comparisons.get(wrappedArray[i])["__sortOrder"] = i;
+                for (let i = 0; i < wrappedCollectionToBe.length; ++i)
+                    this._comparisons.get(wrappedCollection[i])["__sortOrder"] = i;
 
                 for (var c of comparisonsToRefresh)
                     c.refresh();
-
-                this.notifySubscribers(addedOrRemovedItems);
 
                 delete this._reflowHandle;
             }
@@ -1475,16 +1477,6 @@ export class SortedObservableSet<T> extends ObservableArray<T> implements Derive
 
         delete this._sourceCollectionSubscription;
     }
-}
-
-export interface AddedOrRemovedItems<T> {
-
-    addedItems: T[];
-    removedItems: T[];
-
-    index: number;
-
-    move: boolean;
 }
 
 function sortSet<T>(set: Set<T>, sortFunction: (a: T, b: T) => number) {

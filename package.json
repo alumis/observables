@@ -1,6 +1,6 @@
 {
   "name": "@alumis/observables",
-  "version": "1.0.45",
+  "version": "1.0.47",
   "description": "An efficient, single-threaded observable library with support for computed, arrays and sets.",
   "repository": {
     "type": "git",
