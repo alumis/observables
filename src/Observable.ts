@@ -62,6 +62,11 @@ export class Observable<T> {
         }
     }
 
+    toString() {
+
+        return this.value;
+    }
+
     setValueDontNotify(newValue: T, exemptedObservableSubscription: ObservableSubscription) {
 
         let oldValue = this.wrappedValue;
