@@ -7,4 +7,5 @@ export interface IObservablePromise<T> extends Promise<T> {
     isErroneous: Observable<boolean>;
     isFinished: Observable<boolean>;
     progress: Observable<number>;
+    dispose();
 }
