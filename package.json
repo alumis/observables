@@ -12,9 +12,9 @@
     "url": "https://github.com/alumis/observables/issues"
   },
   "devDependencies": {
-    "@alumis/semaphore": "^1.0.1"
+    "@alumis/utils": "^1.0.15"
   },
   "peerDependencies": {
-    "@alumis/semaphore": "^1.0.1"
+    "@alumis/utils": "^1.0.15"
   }
 }

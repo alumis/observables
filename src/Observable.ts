@@ -1,4 +1,4 @@
-import { Semaphore } from "@alumis/semaphore";
+import { Semaphore } from "@alumis/utils/src/Semaphore";
 
 export let stack = [];
 
