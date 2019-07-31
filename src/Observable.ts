@@ -158,7 +158,7 @@ export interface IComputedObservable<T> extends IObservable<T> {
     evaluate();
 }
 
-class ComputedObservable<T> implements IObservable<T> {
+class ComputedObservable<T> implements IComputedObservable<T> {
 
     constructor() {
         this.refresh = this.refresh.bind(this);
