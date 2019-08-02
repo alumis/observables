@@ -1,28 +1,26 @@
-import { ObservableSubscription } from "./ObservableSubscription";
-
 let observableBin: Observable<any>[] = [], observableBinLength = 0;
 
-let stack: Array<ComputedObservable<any>> = [];
+export var stack: Array<ComputedObservable<any>> = [];
 
 export interface IObservable<T> {
 
     value: T;
     wrappedValue: T;
-    subscribe(callback: (newValue: T, oldValue: T) => any);
-    subscribeInvoke(callback: (newValue: T, oldValue: T) => any);
-    invalidate();
-    dispose();
+    subscribe(callback: (newValue: T, oldValue: T) => any): IObservableSubscription;
+    subscribeInvoke(callback: (newValue: T, oldValue: T) => any): IObservableSubscription;
+    invalidate(): void;
+    dispose(): void;
 }
 
 export interface IModifiableObservable<T> extends IObservable<T> {
 
-    setValueDontNotifyMe(newValue: T, exemptedObservableSubscription: ObservableSubscription);
+    setValueDontNotifyMe(newValue: T, exemptedObservableSubscription: IObservableSubscription): void;
 }
 
 class Observable<T> implements IModifiableObservable<T> {
 
     constructor() {
-        (this._head._next = this._tail)._previous = this._head;
+        (this._head.next = this._tail).previous = this._head;
         this.dispose = this.dispose.bind(this);
     }
 
@@ -63,52 +61,23 @@ class Observable<T> implements IModifiableObservable<T> {
     }
 
     private notifySubscribers(newValue: T, oldValue: T) {
-        if (stack.length) {
-            let oldStack = stack;
-            stack = [];
-            try {
-                for (let node = this._head._next; node !== this._tail;) {
-                    let currentNode = node;
-                    node = node._next;
-                    currentNode.callback(newValue, oldValue);
-                }
-            }
-            finally { stack = oldStack; }
+        for (let node = this._head.next; node !== this._tail;) {
+            let currentNode = node;
+            node = node.next;
+            currentNode.callback(newValue, oldValue);
         }
-        else {
-            for (let node = this._head._next; node !== this._tail;) {
-                let currentNode = node;
-                node = node._next;
+    }
+
+    private notifySubscribersExcept(newValue: T, oldValue: T, exemptedObservableSubscription: IObservableSubscription) {
+        for (let node = this._head.next; node !== this._tail;) {
+            let currentNode = node;
+            node = node.next;
+            if (currentNode !== exemptedObservableSubscription)
                 currentNode.callback(newValue, oldValue);
-            }
         }
     }
 
-    private notifySubscribersExcept(newValue: T, oldValue: T, exemptedObservableSubscription: ObservableSubscription) {
-        if (stack.length) {
-            let oldStack = stack;
-            stack = [];
-            try {
-                for (let node = this._head._next; node !== this._tail;) {
-                    let currentNode = node;
-                    node = node._next;
-                    if (currentNode !== exemptedObservableSubscription)
-                        currentNode.callback(newValue, oldValue);
-                }
-            }
-            finally { stack = oldStack; }
-        }
-        else {
-            for (let node = this._head._next; node !== this._tail;) {
-                let currentNode = node;
-                node = node._next;
-                if (currentNode !== exemptedObservableSubscription)
-                    currentNode.callback(newValue, oldValue);
-            }
-        }
-    }
-
-    setValueDontNotifyMe(newValue: T, exemptedObservableSubscription: ObservableSubscription) {
+    setValueDontNotifyMe(newValue: T, exemptedObservableSubscription: IObservableSubscription) {
         let oldValue = this.wrappedValue;
         if (newValue !== oldValue) {
             this.wrappedValue = newValue;
@@ -127,11 +96,11 @@ class Observable<T> implements IModifiableObservable<T> {
 
     dispose() {
         delete this.wrappedValue;
-        for (let node = this._head._next; node !== this._tail;) {
-            node = node._next;
-            node._previous.recycle();
+        for (let node = this._head.next; node !== this._tail;) {
+            node = node.next;
+            node.previous.recycle();
         }
-        (this._head._next = this._tail)._previous = this._head;
+        (this._head.next = this._tail).previous = this._head;
         if (observableBin.length === observableBinLength)
             observableBin.push(this);
         else observableBin[observableBinLength] = this;
@@ -201,24 +170,10 @@ class ComputedObservable<T> implements IComputedObservable<T> {
     }
 
     private notifySubscribers(newValue: T, oldValue: T) {
-        if (stack.length) {
-            let oldStack = stack;
-            stack = [];
-            try {
-                for (let node = this._head._next; node !== this._tail;) {
-                    let currentNode = node;
-                    node = node._next;
-                    currentNode.callback(newValue, oldValue);
-                }
-            }
-            finally { stack = oldStack; }
-        }
-        else {
-            for (let node = this._head._next; node !== this._tail;) {
-                let currentNode = node;
-                node = node._next;
-                currentNode.callback(newValue, oldValue);
-            }
+        for (let node = this._head.next; node !== this._tail;) {
+            let currentNode = node;
+            node = node.next;
+            currentNode.callback(newValue, oldValue);
         }
     }
 
@@ -238,11 +193,11 @@ class ComputedObservable<T> implements IComputedObservable<T> {
         let observables = this._observables;
         observables.forEach(s => { s.unsubscribeAndRecycle(); });
         observables.clear();
-        for (let node = this._head._next; node !== this._tail;) {
-            node = node._next;
-            node._previous.recycle();
+        for (let node = this._head.next; node !== this._tail;) {
+            node = node.next;
+            node.previous.recycle();
         }
-        (this._head._next = this._tail)._previous = this._head;
+        (this._head.next = this._tail).previous = this._head;
         if (computedObservableBin.length === computedObservableBinLength)
             computedObservableBin.push(this);
         else computedObservableBin[computedObservableBinLength] = this;
@@ -286,4 +241,111 @@ export function co<T>(expression: () => T, evaluateAtOnce = true): IComputedObse
     if (evaluateAtOnce)
         result.evaluate();
     return result;
+}
+
+// Each observable keeps a doubly-linked list of subscriptions (callbacks to invoke when a state changes).
+// It is a doubly-linked list because insertions and deletions should be fast.
+// The doubly-linked list usually has a head and a tail.
+// When a subscription is no longer needed, it should be recycled for later usage.
+// The bin immediately below keeps references to ready-to-use subscriptions that have been recycled.
+
+let observableSubscriptionBin: ObservableSubscription[] = [], observableSubscriptionBinLength = 0;
+
+export interface IObservableSubscription {
+
+    /**
+     * Use this function if you no longer wish the callback to be invoked.
+     * @remarks
+     * After invocation, for long-lived scopes, you should expunge any reference you have to it to accommodate the GC.
+     */
+    unsubscribeAndRecycle();
+}
+
+export class ObservableSubscription implements IObservableSubscription {
+
+    /**
+     * Use ObservableSubscription.create() instead.
+     * @internal
+     */
+    constructor() {
+        this.unsubscribeAndRecycle = this.unsubscribeAndRecycle.bind(this);
+    }
+
+    /**
+     * Creates or returns a recycled instance.
+     * @internal
+     */
+    static create() {
+        if (observableSubscriptionBinLength) {
+            new ObservableSubscription()
+            let existing = observableSubscriptionBin[--observableSubscriptionBinLength];
+            observableSubscriptionBin[observableSubscriptionBinLength] = null; // Avoids referencing the subscription (thinking of GC; also easier to debug memory leaks)
+            return existing;
+        }
+        else return new ObservableSubscription();
+    }
+
+    /**
+     * Creates and appends a new subscription to right before the tail.
+     * @internal
+     */
+    static createAndAppend(tail: ObservableSubscription, callback: (...args: any[]) => any) {
+        let result = ObservableSubscription.create();
+        (result.previous = tail.previous).next = result;
+        (result.next = tail).previous = result;
+        result.callback = callback;
+        return result;
+    }
+
+    /**
+     * Creates and prepends a new subscription to right after the head.
+     * @internal
+     */
+    static createFromHead(head: ObservableSubscription, callback: (...args: any[]) => any) {
+        let result = ObservableSubscription.create();
+        (result.next = head.next).previous = result;
+        (result.previous = head).next = result;
+        result.callback = callback;
+        return result;
+    }
+
+    callback: ((...args: any[]) => any);
+
+    /**
+     * The previous node in the doubly-linked list.
+     * @internal
+     */
+    previous: ObservableSubscription;
+
+    /**
+     * The next node in the doubly-linked list.
+     * @internal
+     */
+    next: ObservableSubscription;
+
+    /**
+     * Recycles a subscription (places it in the bin) such that it may be reused.
+     * @remarks
+     * Use unsubscribeAndRecycle() if you instead wish to both unsubscribe and recycle.
+     * @internal
+     */
+    recycle() {
+        delete this.callback;
+        delete this.previous;
+        delete this.next;
+        if (observableSubscriptionBin.length === observableSubscriptionBinLength)
+            observableSubscriptionBin.push(this);
+        else observableSubscriptionBin[observableSubscriptionBinLength] = this;
+        ++observableSubscriptionBinLength;
+    }
+
+    /**
+     * Use this function if you no longer wish the callback to be invoked.
+     * @remarks
+     * After invocation, for long-lived scopes, you should expunge any reference you have to it to accommodate the GC.
+     */
+    unsubscribeAndRecycle() {
+        (this.previous.next = this.next).previous = this.previous;
+        this.recycle();
+    }
 }
