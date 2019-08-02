@@ -1,6 +1,6 @@
 let observableBin: Observable<any>[] = [], observableBinLength = 0;
 
-export var stack: Array<ComputedObservable<any>> = [];
+export var stack = [];
 
 export interface IObservable<T> {
 
@@ -20,8 +20,8 @@ export interface IModifiableObservable<T> extends IObservable<T> {
 class Observable<T> implements IModifiableObservable<T> {
 
     constructor() {
-        (this._head.next = this._tail).previous = this._head;
         this.dispose = this.dispose.bind(this);
+        (this._head.next = this._tail).previous = this._head;
     }
 
     wrappedValue: T;
@@ -47,17 +47,17 @@ class Observable<T> implements IModifiableObservable<T> {
     }
 
     subscribe(callback: (newValue: T, oldValue: T) => any) {
-        return ObservableSubscription.createAndAppend(this._tail, callback);
+        return ObservableSubscription.createAndPrependToTail(this._tail, callback);
     }
 
     subscribeInvoke(callback: (newValue: T, oldValue: T) => any) {
         callback(this.wrappedValue, undefined);
-        let subscription = ObservableSubscription.createAndAppend(this._tail, callback);
+        let subscription = ObservableSubscription.createAndPrependToTail(this._tail, callback);
         return subscription;
     }
 
     private subscribeSneakInLine(callback: (newValue: T, oldValue: T) => any) {
-        return ObservableSubscription.createFromHead(this._head, callback);
+        return ObservableSubscription.createAndAppendToHead(this._head, callback);
     }
 
     private notifySubscribers(newValue: T, oldValue: T) {
@@ -90,15 +90,14 @@ class Observable<T> implements IModifiableObservable<T> {
         this.notifySubscribers(value, value);
     }
 
-    toString() {
-        return String(this.value);
-    }
+    get [Symbol.toStringTag]() { return String(this.value); }
 
     dispose() {
         delete this.wrappedValue;
         for (let node = this._head.next; node !== this._tail;) {
+            let currentNode = node;
             node = node.next;
-            node.previous.recycle();
+            currentNode.recycle();
         }
         (this._head.next = this._tail).previous = this._head;
         if (observableBin.length === observableBinLength)
@@ -125,14 +124,15 @@ export interface IComputedObservable<T> extends IObservable<T> {
     expression: () => T;
     error;
     evaluate();
+    refresh();
 }
 
 class ComputedObservable<T> implements IComputedObservable<T> {
 
     constructor() {
-        (this._head.next = this._tail).previous = this._head;
         this.dispose = this.dispose.bind(this);
         this.refresh = this.refresh.bind(this);
+        (this._head.next = this._tail).previous = this._head;
     }
 
     wrappedValue: T;
@@ -158,17 +158,17 @@ class ComputedObservable<T> implements IComputedObservable<T> {
     }
 
     subscribe(callback: (newValue: T, oldValue: T) => any) {
-        return ObservableSubscription.createAndAppend(this._tail, callback);
+        return ObservableSubscription.createAndPrependToTail(this._tail, callback);
     }
 
     subscribeInvoke(callback: (newValue: T, oldValue: T) => any) {
         callback(this.wrappedValue, undefined);
-        let subscription = ObservableSubscription.createAndAppend(this._tail, callback);
+        let subscription = ObservableSubscription.createAndPrependToTail(this._tail, callback);
         return subscription;
     }
 
     subscribeSneakInLine(callback: (newValue: T, oldValue: T) => any) {
-        return ObservableSubscription.createFromHead(this._head, callback);
+        return ObservableSubscription.createAndAppendToHead(this._head, callback);
     }
 
     private notifySubscribers(newValue: T, oldValue: T) {
@@ -184,9 +184,7 @@ class ComputedObservable<T> implements IComputedObservable<T> {
         this.notifySubscribers(value, value);
     }
 
-    toString() {
-        return String(this.value);
-    }
+    get [Symbol.toStringTag]() { return String(this.value); }
 
     dispose() {
         delete this.wrappedValue;
@@ -196,8 +194,9 @@ class ComputedObservable<T> implements IComputedObservable<T> {
         observables.forEach(s => { s.unsubscribeAndRecycle(); });
         observables.clear();
         for (let node = this._head.next; node !== this._tail;) {
+            let currentNode = node;
             node = node.next;
-            node.previous.recycle();
+            currentNode.recycle();
         }
         (this._head.next = this._tail).previous = this._head;
         if (computedObservableBin.length === computedObservableBinLength)
@@ -291,7 +290,7 @@ export class ObservableSubscription implements IObservableSubscription {
      * Creates and appends a new subscription to right before the tail.
      * @internal
      */
-    static createAndAppend(tail: ObservableSubscription, callback: (...args: any[]) => any) {
+    static createAndPrependToTail(tail: ObservableSubscription, callback: (...args: any[]) => any) {
         let result = ObservableSubscription.create();
         (result.previous = tail.previous).next = result;
         (result.next = tail).previous = result;
@@ -303,7 +302,7 @@ export class ObservableSubscription implements IObservableSubscription {
      * Creates and prepends a new subscription to right after the head.
      * @internal
      */
-    static createFromHead(head: ObservableSubscription, callback: (...args: any[]) => any) {
+    static createAndAppendToHead(head: ObservableSubscription, callback: (...args: any[]) => any) {
         let result = ObservableSubscription.create();
         (result.next = head.next).previous = result;
         (result.previous = head).next = result;

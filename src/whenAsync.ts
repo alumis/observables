@@ -1,10 +1,6 @@
 import { co } from "./Observable";
 
 export function whenAsync(expression: () => boolean) {
-    try { var value = expression(); }
-    catch (e) { return Promise.reject(value); }
-    if (value)
-        return Promise.resolve(value);
     return new Promise((resolve, reject) => {
         let o = co(() => {
             try {
@@ -14,9 +10,8 @@ export function whenAsync(expression: () => boolean) {
                 o.dispose();
                 reject(e);
             }
-        }, false);
-        o.wrappedValue = value;
-        o.subscribe(n => {
+        });
+        o.subscribeInvoke(n => {
             if (n) {
                 o.dispose();
                 resolve(n);
