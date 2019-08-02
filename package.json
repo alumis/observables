@@ -2,6 +2,10 @@
   "name": "@alumis/observables",
   "version": "2.0.4",
   "description": "An efficient, single-threaded observable library with support for computed, arrays and sets.",
+  "scripts": {
+    "postversion": "npm publish",
+    "postpublish": "git push --follow-tags"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/alumis/observables.git"
@@ -10,11 +14,5 @@
   "license": "GPL-3.0",
   "bugs": {
     "url": "https://github.com/alumis/observables/issues"
-  },
-  "devDependencies": {
-    "@alumis/utils": "^1.0.15"
-  },
-  "peerDependencies": {
-    "@alumis/utils": "^1.0.15"
   }
 }
