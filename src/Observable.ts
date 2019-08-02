@@ -130,6 +130,8 @@ export interface IComputedObservable<T> extends IObservable<T> {
 class ComputedObservable<T> implements IComputedObservable<T> {
 
     constructor() {
+        (this._head.next = this._tail).previous = this._head;
+        this.dispose = this.dispose.bind(this);
         this.refresh = this.refresh.bind(this);
     }
 
