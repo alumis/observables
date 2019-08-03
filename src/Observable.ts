@@ -1,23 +1,18 @@
-let observableBin: Observable<any>[] = [], observableBinLength = 0;
+let observableBin: ModifiableObservable<any>[] = [], observableBinLength = 0;
 
 export var stack = [];
 
-export interface IObservable<T> {
+export interface Observable<T> {
 
     value: T;
     wrappedValue: T;
-    subscribe(callback: (newValue: T, oldValue: T) => any): IObservableSubscription;
-    subscribeInvoke(callback: (newValue: T, oldValue: T) => any): IObservableSubscription;
+    subscribe(callback: (newValue: T, oldValue: T) => any): ObservableSubscription;
+    subscribeInvoke(callback: (newValue: T, oldValue: T) => any): ObservableSubscription;
     invalidate(): void;
     dispose(): void;
 }
 
-export interface IModifiableObservable<T> extends IObservable<T> {
-
-    setValueDontNotifyMe(newValue: T, exemptedObservableSubscription: IObservableSubscription): void;
-}
-
-class Observable<T> implements IModifiableObservable<T> {
+export class ModifiableObservable<T> implements Observable<T> {
 
     constructor() {
         this.dispose = this.dispose.bind(this);
@@ -68,7 +63,7 @@ class Observable<T> implements IModifiableObservable<T> {
         }
     }
 
-    private notifySubscribersExcept(newValue: T, oldValue: T, exemptedObservableSubscription: IObservableSubscription) {
+    private notifySubscribersExcept(newValue: T, oldValue: T, exemptedObservableSubscription: ObservableSubscription) {
         for (let node = this._head.next; node !== this._tail;) {
             let currentNode = node;
             node = node.next;
@@ -77,7 +72,7 @@ class Observable<T> implements IModifiableObservable<T> {
         }
     }
 
-    setValueDontNotifyMe(newValue: T, exemptedObservableSubscription: IObservableSubscription) {
+    setValueDontNotifyMe(newValue: T, exemptedObservableSubscription: ObservableSubscription) {
         let oldValue = this.wrappedValue;
         if (newValue !== oldValue) {
             this.wrappedValue = newValue;
@@ -107,27 +102,19 @@ class Observable<T> implements IModifiableObservable<T> {
     }
 }
 
-export function o<T>(value?: T): IModifiableObservable<T> {
+export function o<T>(value?: T): ModifiableObservable<T> {
     if (observableBinLength) {
-        var result = <Observable<T>>observableBin[--observableBinLength];
+        var result = <ModifiableObservable<T>>observableBin[--observableBinLength];
         observableBin[observableBinLength] = null;
     }
-    else var result = new Observable<T>();
+    else var result = new ModifiableObservable<T>();
     result.wrappedValue = value;
     return result;
 }
 
 let computedObservableBin: ComputedObservable<any>[] = [], computedObservableBinLength = 0;
 
-export interface IComputedObservable<T> extends IObservable<T> {
-
-    expression: () => T;
-    error;
-    evaluate();
-    refresh();
-}
-
-class ComputedObservable<T> implements IComputedObservable<T> {
+export class ComputedObservable<T> implements Observable<T> {
 
     constructor() {
         this.dispose = this.dispose.bind(this);
@@ -143,7 +130,7 @@ class ComputedObservable<T> implements IComputedObservable<T> {
     expression: () => T;
     error = null;
 
-    _observables: Map<IObservable<T>, ObservableSubscription> = new Map();
+    _observables: Map<Observable<T>, ObservableSubscription> = new Map();
 
     get value() {
         if (stack.length) {
@@ -205,17 +192,17 @@ class ComputedObservable<T> implements IComputedObservable<T> {
         ++computedObservableBinLength;
     }
 
-    evaluate() {
+    initialize() {
         try {
             stack.push(this);
             try { var result = this.expression(); }
             finally { stack.pop(); }
         }
-        catch (e) { this.setValueAndError(undefined, e); return; }
-        this.setValueAndError(result, null);
+        catch (e) { this.setValueAndErrorAndNotifySubscribers(undefined, e); return; }
+        this.setValueAndErrorAndNotifySubscribers(result, null);
     }
 
-    private setValueAndError(value: T, error) {
+    private setValueAndErrorAndNotifySubscribers(value: T, error) {
         let oldValue = this.wrappedValue, oldError = this.error;
         if (value !== oldValue || error !== oldError) {
             this.wrappedValue = value;
@@ -228,11 +215,11 @@ class ComputedObservable<T> implements IComputedObservable<T> {
         let observables = this._observables;
         observables.forEach(s => { s.unsubscribeAndRecycle(); });
         observables.clear();
-        this.evaluate();
+        this.initialize();
     }
 }
 
-export function co<T>(expression: () => T, evaluateAtOnce = true): IComputedObservable<T> {
+export function co<T>(expression: () => T, evaluateAtOnce = true): ComputedObservable<T> {
     if (computedObservableBinLength) {
         var result = <ComputedObservable<T>>computedObservableBin[--computedObservableBinLength];
         computedObservableBin[computedObservableBinLength] = null;
@@ -240,7 +227,7 @@ export function co<T>(expression: () => T, evaluateAtOnce = true): IComputedObse
     else var result = new ComputedObservable<T>();
     result.expression = expression;
     if (evaluateAtOnce)
-        result.evaluate();
+        result.initialize();
     return result;
 }
 
@@ -252,17 +239,7 @@ export function co<T>(expression: () => T, evaluateAtOnce = true): IComputedObse
 
 let observableSubscriptionBin: ObservableSubscription[] = [], observableSubscriptionBinLength = 0;
 
-export interface IObservableSubscription {
-
-    /**
-     * Use this function if you no longer wish the callback to be invoked.
-     * @remarks
-     * After invocation, for long-lived scopes, you should expunge any reference you have to it to accommodate the GC.
-     */
-    unsubscribeAndRecycle();
-}
-
-export class ObservableSubscription implements IObservableSubscription {
+export class ObservableSubscription {
 
     /**
      * Use ObservableSubscription.create() instead.
@@ -349,4 +326,8 @@ export class ObservableSubscription implements IObservableSubscription {
         (this.previous.next = this.next).previous = this.previous;
         this.recycle();
     }
+}
+
+export function isObservable(obj) {
+    return obj instanceof ModifiableObservable || obj instanceof ComputedObservable;
 }

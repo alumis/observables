@@ -3,7 +3,7 @@
   "version": "2.0.7",
   "description": "An efficient, single-threaded observable library with support for computed, arrays and sets.",
   "scripts": {
-    "bump": "git add -A & git commit -am 'bump' && npm version patch && npm publish && git push --follow-tags"
+    "bump": "git add -A & git commit -am 'bumped' && npm version patch && npm publish && git push --follow-tags"
   },
   "repository": {
     "type": "git",
