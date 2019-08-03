@@ -147,15 +147,15 @@ export function cleanNode(node: Node) {
     let cleanCallbacks: (() => any)[] = node["__cleanCallbacks"];
     if (cleanCallbacks) {
         delete node["__cleanCallbacks"];
-        for (let fn of cleanCallbacks.reverse())
-            fn();
+        for (let c of cleanCallbacks.reverse())
+            c();
     }
 }
 
-export function deleteCleanCallback(node: Node, fn: () => any) {
+export function deleteCleanCallback(node: Node, callback: () => any) {
     let cleanCallbacks: (() => any)[] = node["__cleanCallbacks"];
     if (cleanCallbacks) {
-        let i = cleanCallbacks.indexOf(fn);
+        let i = cleanCallbacks.indexOf(callback);
         if (i !== -1) {
             if (cleanCallbacks.length === 1)
                 delete node["__cleanCallbacks"];
