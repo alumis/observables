@@ -1,5 +1,5 @@
-import { ObservableList, ObservableListNode, ObservableListModification, ObservableListModificationType } from "./ObservableList";
 import { ObservableSubscription } from "./Observable";
+import { ObservableList, ObservableListNode, ObservableListModification, ObservableListModificationType } from "./ObservableList";
 
 export class MappedObservableList<T, U> extends ObservableList<U> {
 

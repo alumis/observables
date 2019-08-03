@@ -1,5 +1,5 @@
+import { ComputedObservable, co, ObservableSubscription } from "./Observable";
 import { ObservableSet } from "./ObservableSet";
-import { IComputedObservable, ObservableSubscription, co } from "./Observable";
 
 export class FilteredObservableSet<T> extends ObservableSet<T> {
 
@@ -27,7 +27,7 @@ export class FilteredObservableSet<T> extends ObservableSet<T> {
         });
     }
 
-    private _observables: Map<T, IComputedObservable<boolean>> = new Map();
+    private _observables: Map<T, ComputedObservable<boolean>> = new Map();
     private _subscription: ObservableSubscription;
 
     private createObservable(item: T) {

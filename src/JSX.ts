@@ -1,4 +1,4 @@
-import { isObservable, Observable, co } from "./Observable";
+import { Observable, co, isObservable } from "./Observable";
 import { ObservableList, ObservableListModificationType } from "./ObservableList";
 
 export function createNode(element: string | (() => any), attrs: { [attr: string]: any }, ...children) {

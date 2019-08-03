@@ -1,6 +1,6 @@
+import { ComputedObservable, co, ObservableSubscription } from "./Observable";
 import { ObservableList, ObservableListNode, ObservableListModification, ObservableListModificationType } from "./ObservableList";
 import { ObservableSet } from "./ObservableSet";
-import { IComputedObservable, ObservableSubscription, co } from "./Observable";
 
 export class SortedObservableSet<T> extends ObservableList<T> {
 
@@ -68,7 +68,7 @@ export class SortedObservableSet<T> extends ObservableList<T> {
         });
     }
 
-    private _comparisons = new Map<ObservableListNode<T>, IComputedObservable<string>>();
+    private _comparisons = new Map<ObservableListNode<T>, ComputedObservable<string>>();
     private _subscription: ObservableSubscription;
 
     private createComparison(node: ObservableListNode<T>) {
