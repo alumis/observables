@@ -1,6 +1,6 @@
 {
   "name": "@alumis/observables",
-  "version": "2.0.10",
+  "version": "2.0.11",
   "description": "An efficient, single-threaded observable library with support for computed, arrays and sets.",
   "scripts": {
     "bump": "git add -A & git commit -am 'bumped' && npm version patch && npm publish && git push --follow-tags"
