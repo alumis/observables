@@ -85,8 +85,6 @@ export class ModifiableObservable<T> implements Observable<T> {
         this.notifySubscribers(value, value);
     }
 
-    get [Symbol.toStringTag]() { return String(this.value); }
-
     dispose() {
         delete this.wrappedValue;
         for (let node = this._head.next; node !== this._tail;) {
@@ -170,8 +168,6 @@ export class ComputedObservable<T> implements Observable<T> {
         let value = this.wrappedValue;
         this.notifySubscribers(value, value);
     }
-
-    get [Symbol.toStringTag]() { return String(this.value); }
 
     dispose() {
         delete this.wrappedValue;
