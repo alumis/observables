@@ -115,8 +115,11 @@ export class ObservableSet<T> {
     }
 
     private notifySubscribers(addedItems: T[], removedItems: T[]) {
-        for (let node = this._head.next; node != this._tail; node = node.next)
-            node.callback(addedItems, removedItems);
+        for (let node = this._head.next; node != this._tail; node = node.next) {
+            let currentNode = node;
+            node = node.next;
+            currentNode.callback(addedItems, removedItems);
+        }
     }
 
     dispose() {

@@ -93,8 +93,11 @@ export class ObservableList<T> {
     }
 
     protected notifySubscribers(modifications: ObservableListModification<T>[]) {
-        for (let node = this._subscriptionsHead.next; node != this._subscriptionsTail; node = node.next)
-            node.callback(modifications);
+        for (let node = this._subscriptionsHead.next; node != this._subscriptionsTail; node = node.next) {
+            let currentNode = node;
+            node = node.next;
+            currentNode.callback(modifications);
+        }
     }
 
     dispose() {
