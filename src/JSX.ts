@@ -537,8 +537,158 @@ export interface Attributes {
     onwheel?: (ev: WheelEvent) => any;
 
 
+    // HTMLAnchorElement
+
+    download?: string | Observable<string> | (() => string);
+    /**
+     * Sets or retrieves the language code of the object.
+     */
+    hreflang?: string | Observable<string> | (() => string);
+    ping?: string | Observable<string> | (() => string);
+    referrerPolicy?: string | Observable<string> | (() => string);
+    /**
+     * Sets or retrieves the relationship between the object and the destination of the link.
+     */
+    rel?: string | Observable<string> | (() => string);
+    /**
+     * Sets or retrieves the window or frame at which to target content.
+     */
+    target?: string | Observable<string> | (() => string);
+    /**
+     * Retrieves or sets the text of the object as a string.
+     */
+    text?: string | Observable<string> | (() => string);
 
     href?: string | Observable<string> | (() => string);
-    download?: string | Observable<string> | (() => string);
-    hreflang?: string | Observable<string> | (() => string);
+
+
+    // HTMLInputElement
+
+    /**
+     * Sets or retrieves a comma-separated list of content types.
+     */
+    accept?: string | Observable<string> | (() => string);
+    /**
+     * Sets or retrieves a text alternative to the graphic.
+     */
+    alt?: string | Observable<string> | (() => string);
+    /**
+     * Specifies whether autocomplete is applied to an editable text field.
+     */
+    autocomplete?: string | Observable<string> | (() => string);
+    /**
+     * Provides a way to direct a user to a specific field when a document loads. This can provide both direction and convenience for a user, reducing the need to click or tab to a field when a page opens. This attribute is true when present on an element, and false when missing.
+     */
+    autofocus?: boolean | Observable<boolean> | (() => boolean);
+    /**
+     * Sets or retrieves the state of the check box or radio button.
+     */
+    checked?: boolean | Observable<boolean> | (() => boolean);
+    /**
+     * Sets or retrieves the state of the check box or radio button.
+     */
+    defaultChecked?: boolean | Observable<boolean> | (() => boolean);
+    /**
+     * Sets or retrieves the initial contents of the object.
+     */
+    defaultValue?: string | Observable<string> | (() => string);
+    dirName?: string | Observable<string> | (() => string);
+    disabled?: boolean | Observable<boolean> | (() => boolean);
+    /**
+     * Overrides the action attribute (where the data on a form is sent) on the parent form element.
+     */
+    formAction?: string | Observable<string> | (() => string);
+    /**
+     * Used to override the encoding (formEnctype attribute) specified on the form element.
+     */
+    formEnctype?: string | Observable<string> | (() => string);
+    /**
+     * Overrides the submit method attribute previously specified on a form element.
+     */
+    formMethod?: string | Observable<string> | (() => string);
+    /**
+     * Overrides any validation or required attributes on a form or form elements to allow it to be submitted without validation. This can be used to create a "save draft"-type submit option.
+     */
+    formNoValidate?: boolean | Observable<boolean> | (() => boolean);
+    /**
+     * Overrides the target attribute on a form element.
+     */
+    formTarget?: string | Observable<string> | (() => string);
+    /**
+     * Sets or retrieves the height of the object.
+     */
+    height?: number | Observable<number> | (() => number);
+    indeterminate?: boolean | Observable<boolean> | (() => boolean);
+    /**
+     * Defines the maximum acceptable value for an input element with type="number".When used with the min and step attributes, lets you control the range and increment (such as only even numbers) that the user can enter into an input field.
+     */
+    max?: string | Observable<string> | (() => string);
+    /**
+     * Sets or retrieves the maximum number of characters that the user can enter in a text control.
+     */
+    maxLength?: number | Observable<number> | (() => number);
+    /**
+     * Defines the minimum acceptable value for an input element with type="number". When used with the max and step attributes, lets you control the range and increment (such as even numbers only) that the user can enter into an input field.
+     */
+    min?: string | Observable<string> | (() => string);
+    minLength?: number | Observable<number> | (() => number);
+    /**
+     * Sets or retrieves the Boolean value indicating whether multiple items can be selected from a list.
+     */
+    multiple?: boolean | Observable<boolean> | (() => boolean);
+    /**
+     * Sets or retrieves the name of the object.
+     */
+    name?: string | Observable<string> | (() => string);
+    /**
+     * Gets or sets a string containing a regular expression that the user's input must match.
+     */
+    pattern?: string | Observable<string> | (() => string);
+    /**
+     * Gets or sets a text string that is displayed in an input field as a hint or prompt to users as the format or type of information they need to enter.The text appears in an input field until the user puts focus on the field.
+     */
+    placeholder?: string | Observable<string> | (() => string);
+    readOnly?: boolean | Observable<boolean> | (() => boolean);
+    /**
+     * When present, marks an element that can't be submitted without a value.
+     */
+    required?: boolean | Observable<boolean> | (() => boolean);
+    selectionDirection?: string | null | Observable<string | null> | (() => string | null);
+    /**
+     * Gets or sets the end position or offset of a text selection.
+     */
+    selectionEnd?: number | null | Observable<number | null> | (() => number | null);
+    /**
+     * Gets or sets the starting position or offset of a text selection.
+     */
+    selectionStart?: number | null | Observable<number | null> | (() => number | null);
+    size?: number | Observable<number> | (() => number);
+    /**
+     * The address or URL of the a media resource that is to be considered.
+     */
+    src?: string | Observable<string> | (() => string);
+    /**
+     * Defines an increment or jump between values that you want to allow the user to enter. When used with the max and min attributes, lets you control the range and increment (for example, allow only even numbers) that the user can enter into an input field.
+     */
+    step?: string | Observable<string> | (() => string);
+    /**
+     * Returns the content type of the object.
+     */
+    type?: string | Observable<string> | (() => string);
+    /**
+     * Returns the value of the data at the cursor's current position.
+     */
+    value?: string | Observable<string> | (() => string);
+    /**
+     * Returns a Date object representing the form control's value, if applicable; otherwise, returns null. Can be set, to change the value. Throws an "InvalidStateError" DOMException if the control isn't date- or time-based.
+     */
+    valueAsDate?: Date | null | Observable<Date | null> | (() => Date | null);
+    /**
+     * Returns the input field value as a number.
+     */
+    valueAsNumber?: number | Observable<number> | (() => number);
+    /**
+     * Sets or retrieves the width of the object.
+     */
+    width?: number | Observable<number> | (() => number);
 }
