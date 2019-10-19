@@ -114,14 +114,14 @@ globalAttrHandlers.set("class", (element: HTMLElement, expression) => {
             let value = (<Observable<string>>expression).value;
             if (value)
                 element.classList.add(...value.split(" ").filter(s => s));
-            appendCleanCallback(element, expression.subscribe((n, o) => {
+            appendCleanCallback(element, (<Observable<string>>expression).subscribe((n, o) => {
                 let oldClasses = new Set((<string>o).split(" ")), newClasses = new Set((<string>n).split(" "));
                 for (var cls of oldClasses) {
                     if (!newClasses.has(cls))
                         element.classList.remove(cls);
                 }
                 element.classList.add(...newClasses);
-            }).dispose);
+            }).unsubscribeAndRecycle);
         }
         else if (typeof expression === "function") {
             let o = co<string>(expression);
@@ -147,8 +147,8 @@ export function cleanNode(node: Node) {
     let cleanCallbacks: (() => any)[] = node["__cleanCallbacks"];
     if (cleanCallbacks) {
         delete node["__cleanCallbacks"];
-        for (let c of cleanCallbacks.reverse())
-            c();
+        for (let i = cleanCallbacks.length; 0 < i;)
+            cleanCallbacks[--i]();
     }
 }
 
@@ -535,4 +535,10 @@ export interface Attributes {
      */
     onwaiting?: (ev: Event) => any;
     onwheel?: (ev: WheelEvent) => any;
+
+
+
+    href?: string | Observable<string> | (() => string);
+    download?: string | Observable<string> | (() => string);
+    hreflang?: string | Observable<string> | (() => string);
 }
